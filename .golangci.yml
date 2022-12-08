@@ -1,0 +1,29 @@
+run:
+  timeout: 1m
+output:
+  format: github-actions
+  sort-results: true
+linters:
+  enable-all: true
+  disable:
+    - asciicheck
+    - containedctx
+    - depguard
+    - exhaustivestruct
+    - forbidigo
+    - gochecknoglobals
+    - gochecknoinits
+    - gocyclo
+    - godot
+    - godox
+    - gofmt
+    - gofumpt
+    - goheader
+    - nlreturn
+    - paralleltest
+    - promlinter
+    - testpackage
+    - varnamelen
+issues:
+  new: true
+  new-from-rev: HEAD
