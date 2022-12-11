@@ -1,17 +1,20 @@
 package libaiac
 
 import (
-	"bufio"
 	"bytes"
+    "bufio"
 	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/adrg/xdg"
 	"github.com/google/uuid"
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/ido50/requests"
 )
@@ -27,24 +30,48 @@ var ErrNoCode = errors.New("no code generated")
 
 type Client struct {
 	*requests.HTTPClient
-	sessionToken   string
-	accessToken    string
-	conversationID string
-	parentID       string
+	token   string
+	chatGPT bool
 }
 
-func NewClient(sessionToken string) *Client {
-	sessionToken = strings.TrimPrefix(sessionToken, SessionTokenCookie+"=")
-
-	return &Client{
-		sessionToken: sessionToken,
-		HTTPClient: requests.NewClient("https://"+ChatGPTHost).
-			Accept("application/json").
-			Header("User-Agent", DefaultUserAgent).
-			Header("X-Openai-Assistant-App-Id", "").
-			Header("Accept-Language", "en-US,en;q=0.9").
-			Header("Referer", "https://"+ChatGPTHost+"/chat"),
+func NewClient(chatGPT bool, token string) *Client {
+	cli := &Client{
+		token:   token,
+		chatGPT: chatGPT,
 	}
+
+	if !chatGPT {
+		cli.HTTPClient = requests.NewClient("https://api.openai.com/v1").
+			Accept("application/json").
+			Header("Authorization", fmt.Sprintf("Bearer %s", token)).
+			ErrorHandler(func(
+				httpStatus int,
+				contentType string,
+				body io.Reader,
+			) error {
+				var res struct {
+					Error struct {
+						Message string `json:"message"`
+						Type    string `json:"type"`
+					} `json:"error"`
+				}
+				err := json.NewDecoder(body).Decode(&res)
+				if err != nil {
+					return fmt.Errorf(
+						"OpenAI returned response %s",
+						http.StatusText(httpStatus),
+					)
+				}
+
+				return fmt.Errorf("[%s] %s", res.Error.Type, res.Error.Message)
+			})
+	} else {
+		cli.HTTPClient = requests.NewClient(fmt.Sprintf("https://%s", ChatGPTHost)).
+			Header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; rv:107.0) Gecko/20100101 Firefox/107.0").
+			Header("Accept-Language", "en-US,en;q=0.9")
+	}
+
+	return cli
 }
 
 func (client *Client) Ask(
@@ -53,34 +80,71 @@ func (client *Client) Ask(
 	outputPath string,
 	readmePath string,
 ) (err error) {
+	var code, readme string
+
+	if client.chatGPT {
+		code, readme, err = client.askViaChatGPT(ctx, prompt)
+	} else {
+		code, err = client.askViaAPI(ctx, prompt)
+	}
+
+	if err != nil {
+		return err
+	}
+
+	var codeFd io.Writer
+
+	if outputPath == "-" {
+		codeFd = os.Stdout
+	} else {
+		f, err := os.Create(outputPath)
+		if err != nil {
+			return fmt.Errorf(
+				"failed creating output file %s: %w",
+				outputPath, err,
+			)
+		}
+
+		defer f.Close()
+
+		codeFd = f
+	}
+
+	fmt.Fprint(codeFd, code)
+
+	if readmePath != "" {
+		f, err := os.Create(readmePath)
+		if err != nil {
+			return fmt.Errorf(
+				"failed creating readme file %s: %w",
+				readmePath, err,
+			)
+		}
+
+		defer f.Close()
+
+		fmt.Fprintf(f, readme)
+	}
+
+	return nil
+}
+
+func (client *Client) askViaChatGPT(ctx context.Context, prompt string) (
+    code string,
+    readme string,
+    err error,
+) {
 	requestID, err := uuid.NewRandom()
 	if err != nil {
-		return fmt.Errorf("failed generating UUID: %w", err)
+		return code, readme, fmt.Errorf("failed generating UUID: %w", err)
 	}
 
-	messages := make(chan []byte)
+    accessToken, err := client.loadAccessToken(ctx)
+    if err != nil {
+        return code, readme, fmt.Errorf("failed loading access token: %w", err)
+    }
 
-	if client.accessToken == "" {
-		// get an access token
-		var session struct {
-			AccessToken string `json:"accessToken"`
-		}
-
-		err = client.NewRequest("GET", "/api/auth/session").
-			Cookie(&http.Cookie{
-				Name:   SessionTokenCookie,
-				Value:  client.sessionToken,
-				Path:   "/",
-				Domain: ChatGPTHost,
-			}).
-			Into(&session).
-			RunContext(ctx)
-		if err != nil {
-			return fmt.Errorf("failed getting session details: %w", err)
-		}
-
-		client.accessToken = session.AccessToken
-	}
+    cacheAccessToken(accessToken)
 
 	// start a conversation
 	body := map[string]interface{}{
@@ -99,24 +163,22 @@ func (client *Client) Ask(
 		"conversation_id": nil,
 	}
 
-	if client.conversationID != "" {
-		body["conversation_id"] = client.conversationID
-	}
-	if client.parentID == "" {
-		parentID, err := uuid.NewRandom()
-		if err != nil {
-			return fmt.Errorf("failed generating initial parent ID: %w", err)
-		}
+    parentID, err := uuid.NewRandom()
+    if err != nil {
+        return code, readme, fmt.Errorf(
+            "failed generating initial parent ID: %w",
+            err,
+        )
+    }
 
-		client.parentID = parentID.String()
-	}
+	body["parent_message_id"] = parentID.String()
 
-	body["parent_message_id"] = client.parentID
+	messages := make(chan []byte)
 
 	err = client.NewRequest("POST", "/backend-api/conversation").
 		Accept("text/event-stream").
 		JSONBody(body).
-		Header("Authorization", fmt.Sprintf("Bearer %s", client.accessToken)).
+		Header("Authorization", fmt.Sprintf("Bearer %s", accessToken)).
 		Cookie(&http.Cookie{
 			Name:   CallbackURLCookie,
 			Value:  "https://" + ChatGPTHost + "/",
@@ -125,13 +187,13 @@ func (client *Client) Ask(
 		}).
 		Cookie(&http.Cookie{
 			Name:   SessionTokenCookie,
-			Value:  client.sessionToken,
+			Value:  client.token,
 			Path:   "/",
 			Domain: ChatGPTHost,
 		}).
 		Subscribe(ctx, messages)
 	if err != nil {
-		return fmt.Errorf("failed starting a conversation: %w", err)
+		return code, readme, fmt.Errorf("failed starting a conversation: %w", err)
 	}
 
 	type ChatGPTMessage struct {
@@ -158,11 +220,11 @@ func (client *Client) Ask(
 		var msg ChatGPTMessage
 		err = json.Unmarshal(bmsg, &msg)
 		if err != nil {
-			return fmt.Errorf("failed parsing ChatGPT response: %w", err)
+			return code, readme, fmt.Errorf(
+				"failed parsing ChatGPT response: %w",
+				err,
+			)
 		}
-
-		client.conversationID = msg.ConversationID
-		client.parentID = msg.Message.ID
 
 		if len(msg.Message.Content.Parts) < 1 {
 			continue
@@ -171,54 +233,13 @@ func (client *Client) Ask(
 		finalMessage = msg.Message.Content.Parts[0]
 	}
 
-	var output io.Writer
-
-	if outputPath == "-" {
-		output = os.Stdout
-	} else {
-		f, err := os.Create(outputPath)
-		if err != nil {
-			return fmt.Errorf(
-				"failed creating output file %s: %w",
-				outputPath, err,
-			)
-		}
-
-		defer f.Close()
-
-		output = f
-	}
-
-	var readme io.Writer
-
-	if readmePath != "" {
-		f, err := os.OpenFile(readmePath, os.O_WRONLY|os.O_APPEND|os.O_CREATE, 0644)
-		if err != nil {
-			return fmt.Errorf(
-				"failed creating/opening readme file %s: %w",
-				readmePath, err,
-			)
-		}
-
-		defer f.Close()
-
-		readme = f
-	}
-
-	if readme != nil {
-		fmt.Fprintf(readme, "# %s\n", prompt)
-	}
-
 	scanner := bufio.NewScanner(strings.NewReader(finalMessage))
 
 	var writeOutput, alreadyHadCode bool
+    var b strings.Builder
 
 	for scanner.Scan() {
 		line := scanner.Text()
-
-		if readme != nil {
-			fmt.Fprintln(readme, line)
-		}
 
 		if line == "```" {
 			if !alreadyHadCode {
@@ -228,16 +249,110 @@ func (client *Client) Ask(
 				}
 			}
 		} else if writeOutput {
-			fmt.Fprintln(output, line)
+            fmt.Fprintln(&b, line)
 		}
 	}
 
-	if readme != nil {
-		fmt.Fprintln(readme, "")
+	return b.String(), finalMessage, nil
+}
+
+func (client *Client) askViaAPI(ctx context.Context, prompt string) (
+    code string,
+    err error,
+) {
+	var answer struct {
+		Choices []struct {
+			Text         string `json:"text"`
+			Index        int64  `json:"index"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
 	}
 
-	if !alreadyHadCode {
-		return ErrNoCode
+	var status int
+	err = client.NewRequest("POST", "/completions").
+		JSONBody(map[string]interface{}{
+			"model":      "text-davinci-003",
+			"prompt":     prompt,
+			"max_tokens": 4097 - len(prompt),
+		}).
+		Into(&answer).
+		StatusInto(&status).
+		RunContext(ctx)
+	if err != nil {
+		return code, fmt.Errorf("failed sending prompt: %w", err)
+	}
+
+	if len(answer.Choices) == 0 {
+		return code, fmt.Errorf("no results returned from API")
+	}
+
+	if answer.Choices[0].FinishReason != "stop" {
+		return code, fmt.Errorf(
+			"result was truncated by API due to %s",
+			answer.Choices[0].FinishReason,
+		)
+	}
+
+	return strings.TrimSpace(answer.Choices[0].Text), nil
+}
+
+type CacheFile struct {
+	AccessToken string `json:"accessToken"`
+	Expiry      int64  `json:"expiry"`
+}
+
+func (client *Client) loadAccessToken(ctx context.Context) (token string, err error) {
+    // try to load access token from cache file
+	f, err := os.Open(filepath.Join(xdg.ConfigHome, "aiac.token"))
+	if err == nil {
+        defer f.Close()
+
+        var tokenData CacheFile
+        err = json.NewDecoder(f).Decode(&tokenData)
+        if err == nil && time.Now().Unix() < tokenData.Expiry {
+            // cached token has not expired yet
+            return tokenData.AccessToken, nil
+        }
+    }
+
+    // get an access token from ChatGPT
+    var session struct {
+        AccessToken string `json:"accessToken"`
+    }
+
+    err = client.NewRequest("GET", "/api/auth/session").
+    Cookie(&http.Cookie{
+        Name:   SessionTokenCookie,
+        Value:  client.token,
+        Path:   "/",
+        Domain: ChatGPTHost,
+    }).
+    Into(&session).
+    RunContext(ctx)
+    if err != nil {
+        return token, fmt.Errorf(
+            "failed getting session details: %w",
+            err,
+        )
+    }
+
+    return session.AccessToken, nil
+}
+
+func cacheAccessToken(token string) error {
+	f, err := os.Create(filepath.Join(xdg.ConfigHome, "aiac.token"))
+	if err != nil {
+		return fmt.Errorf("failed creating token file: %w", err)
+	}
+
+	defer f.Close()
+
+	err = json.NewEncoder(f).Encode(CacheFile{
+		AccessToken: token,
+		Expiry:      time.Now().Add(3600 * time.Second).Unix(),
+	})
+	if err != nil {
+		return fmt.Errorf("failed encoding token data: %w", err)
 	}
 
 	return nil

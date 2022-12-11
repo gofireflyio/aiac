@@ -5,8 +5,9 @@
 <!-- vim-markdown-toc GFM -->
 
 * [Description](#description)
-* [Caveats](#caveats)
 * [Quick Start](#quick-start)
+    * [Usage via OpenAI API](#usage-via-openai-api)
+    * [Usage via ChatGPT](#usage-via-chatgpt)
 * [Example Prompts](#example-prompts)
 * [Example Output](#example-output)
 * [Acknowledgements](#acknowledgements)
@@ -17,34 +18,52 @@
 ## Description
 
 `aiac` is a command line tool to generate IaC (Infrastructure as Code) templates
-via [OpenAI](https://openai.com/)'s [ChatGPT](https://chat.openai.com/). The CLI allows you to ask ChatGPT to generate templates
-for different scenarios (e.g. "generate terraform for AWS EC2"). It then makes
-the request on your behalf, accepts the response, and extracts the example code
-from it. This extracted code is either printed to standard output, or saved to a
-file. Optionally, the CLI will append the complete message (i.e. the full
-Markdown response including ChatGPT's explanations) to a separate markdown file.
+via [OpenAI](https://openai.com/)'s API or via ChatGPT. The CLI allows you to ask the model to generate templates
+for different scenarios (e.g. "generate terraform for AWS EC2"). It will make the
+request, and store the resulting code to a file, or simply print it to standard
+output.
 
-## Caveats
-
-- ChatGPT's API is not public, and is likely to change frequently, which
-  may break this program. Please inform us via the [issues page](https://github.com/gofireflyio/aiac/issues) if this happens.
-- ChatGPT may rate limit your requests, and is prone to answer slowly or not at
-  all when under heavy load.
-- ChatGPT's responses to the same prompt may differ between executions. If you
-  are unhappy with the results, try again or modify your prompt.
-- You will currently have to manually copy a session token from an actual browser
-  session. Directions in the [Quick Start](#quick-start) section.
+When using ChatGPT, the server returns a Markdown file with code and explanations.
+The CLI will extract the code in this case, and optionally store the entire
+Markdown of explanations to a separate file.
 
 ## Quick Start
 
 First, install `aiac`:
 
-    go get github.com/gofireflyio/aiac
+    go generate github.com/gofireflyio/aiac
 
 Alternatively, clone the repository and build from source:
 
     git clone https://github.com/gofireflyio/aiac.git
     go build
+
+### Usage via OpenAI API
+
+You will need to provide `aiac` with an API key. Create your API key [here](https://beta.openai.com/account/api-keys).
+You can either provide the API key via the `--api-key` command line flag, or via
+the `OPENAI_API_KEY` environment variable.
+
+By default, `aiac` simply prints the extracted code to standard output
+
+    aiac --api-key=API_KEY generate terraform for AWS EC2
+
+To store the resulting code to a file:
+
+    aiac --api-key=API_KEY \
+         --output-file="aws_ec2.tf" \
+         get terraform for AWS EC2
+
+### Usage via ChatGPT
+
+There are several caveats to using `aiac` in ChatGPT mode:
+
+- ChatGPT's API is not public, and is likely to change frequently, which
+  may break this program. Please inform us via the [issues page](https://github.com/gofireflyio/aiac/issues) if this happens.
+- ChatGPT may rate limit your requests, and is prone to answer slowly or not at
+  all when under heavy load.
+- You will currently have to manually copy a session token from an actual browser
+  session in order to authenticate (instructions follow).
 
 You will need to provide `aiac` with a session token. Since ChatGPT doesn't
 currently support programmatic usage, you will need to do this via your browser
@@ -55,38 +74,34 @@ To get a token, follow these steps:
 2. Open the Web Developer Tools (usually Ctrl+Shift+I).
 3. Go to the "Storage" tab, and move to the list of "Cookies".
 4. Find the cookie called "__Secure-next-auth.session-token".
-5. Copy its value. This is the session token.
+5. Copy its value. This is the session token. You can store it in the
+   `CHATGPT_SESSION_TOKEN` environment variable, or provide it via the
+   `--session-token` command line flag.
 
 ![](/authentication.jpg)
 
-By default, `aiac` simply prints the extracted code to standard output
+Then run:
 
-    aiac --session-token=TOKEN generate terraform for AWS EC2
-
-To store the resulting code to a file, and to append the explanations to a
-markdown file, run:
-
-    aiac --session-token=TOKEN \
-         --output-file="aws_ec2.tf" \
+    aiac --chat-gpt \
+         --session-token=TOKEN \
+         --output-file="ec2.tf" \
          --readme-file="README.md" \
-         generate terraform for AWS EC2
+         get terraform for AWS EC2
 
 ## Example Prompts
 
 The following prompts are known to work:
 
-- generate Terraform for AWS EC2
-- generate Dockerfile for NodeJS
-- generate GitHub action for deploying Terraform
-- generate Python code for Pulumi that deploys Azure VPC
+- get Terraform for AWS EC2
+- get Dockerfile for NodeJS with comments
+- get GitHub action for deploying Terraform
+- get Python code for Pulumi that deploys Azure VPC
 
 ## Example Output
 
 Command line prompt:
 
-```sh
-aiac --session-token=TOKEN generate Dockerfile for NodeJS
-```
+    aiac get dockerfile for nodejs with comments
 
 Output:
 
