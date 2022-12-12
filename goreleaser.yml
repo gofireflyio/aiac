@@ -53,8 +53,8 @@ archives:
 brews:
   -
     tap:
-      owner: gofirefly
-      name: homebrew-firefly
+      owner: gofireflyio
+      name: homebrew-aiac
     homepage: "https://github.com/gofireflyio/aiac"
     description: "Artificial Intelligence Infrastructure-as-Code Generator"
     test: |
