@@ -62,8 +62,8 @@ brews:
 
 dockers:
   - image_templates:
-      - "ghcr.io/gofirefly/aiac:{{ .Version }}-amd64"
-      - "ghcr.io/gofirefly/aiac:latest-amd64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64"
+      - "ghcr.io/gofireflyio/aiac:latest-amd64"
     use: buildx
     goos: linux
     goarch: amd64
@@ -81,8 +81,8 @@ dockers:
       - "--label=org.opencontainers.image.documentation=https://gofirefly.io/"
       - "--platform=linux/amd64"
   - image_templates:
-      - "ghcr.io/gofirefly/aiac:{{ .Version }}-arm64"
-      - "ghcr.io/gofirefly/aiac:latest-arm64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64"
+      - "ghcr.io/gofireflyio/aiac:latest-arm64"
     use: buildx
     goos: linux
     goarch: arm64
@@ -100,8 +100,8 @@ dockers:
       - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
       - "--platform=linux/arm64"
   - image_templates:
-      - "ghcr.io/gofirefly/aiac:{{ .Version }}-s390x"
-      - "ghcr.io/gofirefly/aiac:latest-s390x"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x"
+      - "ghcr.io/gofireflyio/aiac:latest-s390x"
     use: buildx
     goos: linux
     goarch: s390x
@@ -119,8 +119,8 @@ dockers:
       - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
       - "--platform=linux/s390x"
   - image_templates:
-      - "ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le"
-      - "ghcr.io/gofirefly/aiac:latest-ppc64le"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le"
+      - "ghcr.io/gofireflyio/aiac:latest-ppc64le"
     use: buildx
     goos: linux
     goarch: ppc64le
@@ -139,15 +139,15 @@ dockers:
       - "--platform=linux/ppc64le"
 
 docker_manifests:
-  - name_template: 'ghcr.io/gofirefly/aiac:{{ .Version }}'
+  - name_template: 'ghcr.io/gofireflyio/aiac:{{ .Version }}'
     image_templates:
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-amd64'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-arm64'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-s390x'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le'
-  - name_template: 'ghcr.io/gofirefly/aiac:latest'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le'
+  - name_template: 'ghcr.io/gofireflyio/aiac:latest'
     image_templates:
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-amd64'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-arm64'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-s390x'
-    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x'
+    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le'
