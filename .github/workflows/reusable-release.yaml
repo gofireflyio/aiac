@@ -53,12 +53,6 @@ jobs:
         with:
           go-version-file: go.mod
 
-      - name: Generate SBOM
-        uses: CycloneDX/gh-gomod-generate-sbom@v1
-        with:
-          args: mod -licenses -json -output bom.json
-          version: ^v1
-
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
