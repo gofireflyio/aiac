@@ -15,15 +15,20 @@ type flags struct {
 	APIKey       string `help:"OpenAI API key (env: OPENAI_API_KEY)" optional:""`
 	SessionToken string `help:"Session token for ChatGPT (env: CHATGPT_SESSION_TOKEN)" optional:""`
 	ChatGPT      bool   `help:"Use ChatGPT instead of the OpenAI API (requires --session-token)" default:false`
-    OutputFile string   `help:"Output file to push resulting code to, defaults to stdout" default:"-" type:"path"`
-    ReadmeFile string   `help:"Markdown file to push explanations to" optional:"" type:"path"`
+	OutputFile   string `help:"Output file to push resulting code to, defaults to stdout" default:"-" type:"path" short:"o"`
+	ReadmeFile   string `help:"Markdown file to push explanations to" optional:"" type:"path" short:"r"`
+	Save         bool   `help:"Save ChatGPT response without retry prompt" default:false short:"s"`
+	Quiet        bool   `help:"Print ChatGPT response to stdout (non-interactive)" default:false short:"q"`
 	Get          struct {
-		What       []string `arg:"" help:"What to ask ChatGPT to generate"`
+		What []string `arg:"" help:"What to ask ChatGPT to generate"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 }
 
 func main() {
-    var cli flags
+	if len(os.Args) < 2 {
+		os.Args = append(os.Args, "--help")
+	}
+	var cli flags
 	cmd := kong.Parse(&cli)
 
 	if cmd.Command() != "get <what>" {
@@ -34,37 +39,41 @@ func main() {
 	var token string
 
 	if !cli.ChatGPT {
-        token = cli.APIKey
-        if token == "" {
-            var ok bool
-            token, ok = os.LookupEnv("OPENAI_API_KEY")
+		token = cli.APIKey
+		if token == "" {
+			var ok bool
+			token, ok = os.LookupEnv("OPENAI_API_KEY")
 
-            if !ok {
-                fmt.Fprintf(os.Stderr, "You must provide an OpenAI API key\n")
-                os.Exit(1)
-            }
-        }
+			if !ok {
+				fmt.Fprintf(os.Stderr, "You must provide an OpenAI API key\n")
+				os.Exit(1)
+			}
+		}
 	} else {
-        token = cli.SessionToken
-        if token == "" {
-            var ok bool
-            token, ok = os.LookupEnv("CHATGPT_SESSION_TOKEN")
+		token = cli.SessionToken
+		if token == "" {
+			var ok bool
+			token, ok = os.LookupEnv("CHATGPT_SESSION_TOKEN")
 
-            if !ok {
-                fmt.Fprintf(os.Stderr, "You must provide a ChatGPT session token\n")
-                os.Exit(1)
-            }
-        }
+			if !ok {
+				fmt.Fprintf(os.Stderr, "You must provide a ChatGPT session token\n")
+				os.Exit(1)
+			}
+		}
 	}
 
 	client := libaiac.NewClient(cli.ChatGPT, token)
 
+	shouldRetry := !cli.Save
+
 	err := client.Ask(
 		context.TODO(),
-        // NOTE: we are prepending the word "generate" to the prompt, this
-        // ensures the language model actually generates code. The word "get",
-        // on the other hand, doesn't necessarily result in code being generated.
+		// NOTE: we are prepending the word "generate" to the prompt, this
+		// ensures the language model actually generates code. The word "get",
+		// on the other hand, doesn't necessarily result in code being generated.
 		fmt.Sprintf("generate %s", strings.Join(cli.Get.What, " ")),
+		shouldRetry,
+		cli.Quiet,
 		cli.OutputFile,
 		cli.ReadmeFile,
 	)
