@@ -1,0 +1,160 @@
+project_name: aiac
+builds:
+  -
+    main: main.go
+    binary: aiac
+    ldflags:
+      - -s -w
+      - "-extldflags '-static'"
+      - -X main.version={{.Version}}
+    env:
+      - CGO_ENABLED=0
+    goos:
+      - darwin
+      - linux
+      - freebsd
+    goarch:
+      - amd64
+      - 386
+      - arm
+      - arm64
+      - s390x
+      - ppc64le
+    goarm:
+      - 7
+    ignore:
+      - goos: darwin
+        goarch: 386
+      # modernc.org/sqlite doesn't support the following pairs
+      - goos: freebsd
+        goarch: arm
+      - goos: freebsd
+        goarch: arm64
+
+release:
+    extra_files:
+      - glob: ./bom.json
+    discussion_category_name: Announcements
+
+archives:
+  -
+    format: tar.gz
+    name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
+    replacements:
+      amd64: 64bit
+      386: 32bit
+      arm: ARM
+      arm64: ARM64
+      ppc64le: PPC64LE
+      darwin: macOS
+      linux: Linux
+      openbsd: OpenBSD
+      netbsd: NetBSD
+      freebsd: FreeBSD
+      dragonfly: DragonFlyBSD
+    files:
+      - README.md
+      - LICENSE
+brews:
+  -
+    tap:
+      owner: gofirefly
+      name: homebrew-firefly
+    homepage: "https://github.com/gofireflyio/aiac"
+    description: "Artificial Intelligence Infrastructure-as-Code Generator"
+    test: |
+      system "#{bin}/aiac", "--help"
+
+dockers:
+  - image_templates:
+      - "ghcr.io/gofirefly/aiac:{{ .Version }}-amd64"
+      - "ghcr.io/gofirefly/aiac:latest-amd64"
+    use: buildx
+    goos: linux
+    goarch: amd64
+    ids:
+      - aiac
+    build_flag_templates:
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Artificial Intelligence Infrastructure-as-Code Generator"
+      - "--label=org.opencontainers.image.vendor=GoFirefly"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.url=https://www.gofirefly.io/"
+      - "--label=org.opencontainers.image.documentation=https://gofirefly.io/"
+      - "--platform=linux/amd64"
+  - image_templates:
+      - "ghcr.io/gofirefly/aiac:{{ .Version }}-arm64"
+      - "ghcr.io/gofirefly/aiac:latest-arm64"
+    use: buildx
+    goos: linux
+    goarch: arm64
+    ids:
+      - aiac
+    build_flag_templates:
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Artificial Intelligence Infrastructure-as-Code Generator"
+      - "--label=org.opencontainers.image.vendor=GoFirefly"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
+      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--platform=linux/arm64"
+    extra_files:
+    - contrib/
+  - image_templates:
+      - "ghcr.io/gofirefly/aiac:{{ .Version }}-s390x"
+      - "ghcr.io/gofirefly/aiac:latest-s390x"
+    use: buildx
+    goos: linux
+    goarch: s390x
+    ids:
+      - aiac
+    build_flag_templates:
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Artificial Intelligence Infrastructure-as-Code Generator"
+      - "--label=org.opencontainers.image.vendor=GoFirefly"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
+      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--platform=linux/s390x"
+  - image_templates:
+      - "ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le"
+      - "ghcr.io/gofirefly/aiac:latest-ppc64le"
+    use: buildx
+    goos: linux
+    goarch: ppc64le
+    ids:
+      - aiac
+    build_flag_templates:
+      - "--label=org.opencontainers.image.title={{ .ProjectName }}"
+      - "--label=org.opencontainers.image.description=Artificial Intelligence Infrastructure-as-Code Generator"
+      - "--label=org.opencontainers.image.vendor=GoFirefly"
+      - "--label=org.opencontainers.image.version={{ .Version }}"
+      - "--label=org.opencontainers.image.created={{ .Date }}"
+      - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
+      - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
+      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
+      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--platform=linux/ppc64le"
+
+docker_manifests:
+  - name_template: 'ghcr.io/gofirefly/aiac:{{ .Version }}'
+    image_templates:
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-amd64'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-arm64'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-s390x'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le'
+  - name_template: 'ghcr.io/gofirefly/aiac:latest'
+    image_templates:
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-amd64'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-arm64'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-s390x'
+    - 'ghcr.io/gofirefly/aiac:{{ .Version }}-ppc64le'
