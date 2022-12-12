@@ -31,12 +31,17 @@ output.
 
 First, install `aiac`:
 
-    go generate github.com/gofireflyio/aiac
+    brew install gofireflyio/aiac/aiac
+
+Or using `docker`:
+
+    docker pull ghcr.io/gofireflyio/aiac
 
 Alternatively, clone the repository and build from source:
 
     git clone https://github.com/gofireflyio/aiac.git
     go build
+
 
 ### Instructions
 
@@ -50,8 +55,14 @@ By default, aiac prints the extracted code to standard output and asks if it sho
 
 To store the resulting code to a file:
 
-    aiac -o="aws_ec2.tf" \
-         get terraform for AWS EC2
+    aiac -o="aws_ec2.tf" get terraform for AWS EC2
+         
+To run using `docker`
+
+    docker run \
+    -it \
+    -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
+    ghcr.io/gofireflyio/aiac get terraform for ec2
 
 ## Example Prompts
 
