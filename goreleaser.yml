@@ -99,8 +99,6 @@ dockers:
       - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
       - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
       - "--platform=linux/arm64"
-    extra_files:
-    - contrib/
   - image_templates:
       - "ghcr.io/gofirefly/aiac:{{ .Version }}-s390x"
       - "ghcr.io/gofirefly/aiac:latest-s390x"
