@@ -141,7 +141,7 @@ func (client *Client) Ask(
 	}
 	if shouldRetry {
 		input := promptui.Prompt{
-			Label: "“Hit [S/s] to save the file or [R/r] to retry [Q/q] to quit",
+			Label: "Hit [S/s] to save the file or [R/r] to retry [Q/q] to quit",
 			Validate: func(s string) error {
 				if strings.ToLower(s) != "s" && strings.ToLower(s) != "r" && strings.ToLower(s) != "q" {
 					return fmt.Errorf("Invalid input. Try again please.")
