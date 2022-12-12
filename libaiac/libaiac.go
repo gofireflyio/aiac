@@ -23,30 +23,46 @@ import (
 )
 
 const (
-	ChatGPTHost        = "chat.openai.com"
-	DefaultUserAgent   = "Mozilla/5.0 (Windows NT 10.0; rv:107.0) Gecko/20100101 Firefox/107.0"
-	SessionTokenCookie = "__Secure-next-auth.session-token"
-	CallbackURLCookie  = "__Secure-next-auth.callback-url"
+	ChatGPTHost           = "chat.openai.com"
+	DefaultUserAgent      = "Mozilla/5.0 (Windows NT 10.0; rv:107.0) Gecko/20100101 Firefox/107.0"
+	SessionTokenCookie    = "__Secure-next-auth.session-token"
+	CloudflareTokenCookie = "cf_clearance"
+	CloudflareBmCookie    = "__cf_bm"
+	CallbackURLCookie     = "__Secure-next-auth.callback-url"
 )
 
 var ErrNoCode = errors.New("no code generated")
 
 type Client struct {
 	*requests.HTTPClient
-	token   string
-	chatGPT bool
+	token               string
+	cloudflareClearance string
+	cloudflareBm        string
+	userAgent           string
+	chatGPT             bool
 }
 
-func NewClient(chatGPT bool, token string) *Client {
+type AIACClientInput struct {
+	ChatGPT             bool
+	Token               string
+	CloudflareClearance string
+	CloudflareBm        string
+	UserAgent           string
+}
+
+func NewClient(input *AIACClientInput) *Client {
 	cli := &Client{
-		token:   token,
-		chatGPT: chatGPT,
+		token:               input.Token,
+		chatGPT:             input.ChatGPT,
+		cloudflareClearance: input.CloudflareClearance,
+		cloudflareBm:        input.CloudflareBm,
+		userAgent:           input.UserAgent,
 	}
 
-	if !chatGPT {
+	if !cli.chatGPT {
 		cli.HTTPClient = requests.NewClient("https://api.openai.com/v1").
 			Accept("application/json").
-			Header("Authorization", fmt.Sprintf("Bearer %s", token)).
+			Header("Authorization", fmt.Sprintf("Bearer %s", cli.token)).
 			ErrorHandler(func(
 				httpStatus int,
 				contentType string,
@@ -69,8 +85,12 @@ func NewClient(chatGPT bool, token string) *Client {
 				return fmt.Errorf("[%s] %s", res.Error.Type, res.Error.Message)
 			})
 	} else {
+		ua := cli.userAgent
+		if len(ua) == 0 {
+			ua = DefaultUserAgent
+		}
 		cli.HTTPClient = requests.NewClient(fmt.Sprintf("https://%s", ChatGPTHost)).
-			Header("User-Agent", DefaultUserAgent).
+			Header("User-Agent", ua).
 			Header("Accept-Language", "en-US,en;q=0.9")
 	}
 
@@ -247,6 +267,18 @@ func (client *Client) askViaChatGPT(ctx context.Context, prompt string) (
 			Path:   "/",
 			Domain: ChatGPTHost,
 		}).
+		Cookie(&http.Cookie{
+			Name:   CloudflareTokenCookie,
+			Value:  client.cloudflareClearance,
+			Path:   "/",
+			Domain: ChatGPTHost,
+		}).
+		Cookie(&http.Cookie{
+			Name:   CloudflareBmCookie,
+			Value:  client.cloudflareBm,
+			Path:   "/",
+			Domain: ChatGPTHost,
+		}).
 		Subscribe(ctx, messages)
 	if err != nil {
 		return code, readme, fmt.Errorf("failed starting a conversation: %w", err)
@@ -380,6 +412,18 @@ func (client *Client) loadAccessToken(ctx context.Context) (token string, err er
 		Cookie(&http.Cookie{
 			Name:   SessionTokenCookie,
 			Value:  client.token,
+			Path:   "/",
+			Domain: ChatGPTHost,
+		}).
+		Cookie(&http.Cookie{
+			Name:   CloudflareTokenCookie,
+			Value:  client.cloudflareClearance,
+			Path:   "/",
+			Domain: ChatGPTHost,
+		}).
+		Cookie(&http.Cookie{
+			Name:   CloudflareBmCookie,
+			Value:  client.cloudflareBm,
 			Path:   "/",
 			Domain: ChatGPTHost,
 		}).
