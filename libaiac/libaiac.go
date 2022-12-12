@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/fatih/color"
 	"io"
 	"net/http"
 	"os"
@@ -15,7 +16,7 @@ import (
 	"time"
 
 	"github.com/adrg/xdg"
-	tea "github.com/charmbracelet/bubbletea"
+	"github.com/briandowns/spinner"
 	"github.com/google/uuid"
 	"github.com/ido50/requests"
 	"github.com/manifoldco/promptui"
@@ -84,14 +85,16 @@ func (client *Client) Ask(
 	outputPath string,
 	readmePath string,
 ) (err error) {
-	p := tea.NewProgram(initialModel())
-	go p.Run()
+	spin := spinner.New(spinner.CharSets[2],
+		100*time.Millisecond,
+		spinner.WithWriter(color.Error),
+		spinner.WithSuffix("\tGenerating code ..."))
+	spin.Start()
 	killed := false
 
 	defer func() {
 		if !killed {
-			p.Send("")
-			p.Kill()
+			spin.Stop()
 		}
 	}()
 
@@ -109,8 +112,7 @@ func (client *Client) Ask(
 
 	code = fmt.Sprintf("%s\n", code)
 
-	p.Send("")
-	p.Kill()
+	spin.Stop()
 	killed = true
 
 	fmt.Fprintf(os.Stdout, code)
