@@ -12,7 +12,7 @@ Generator.
 * [Quick Start](#quick-start)
     * [Usage via OpenAI API](#usage-via-openai-api)
     * [Usage via ChatGPT](#usage-via-chatgpt)
-* [Example Prompts](#example-prompts)
+* [Example Prompts](#example-prompts-and-usecases)
 * [Example Output](#example-output)
 * [Acknowledgements](#acknowledgements)
 * [License](#license)
@@ -64,16 +64,26 @@ To run using `docker`
     -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
     ghcr.io/gofireflyio/aiac get terraform for ec2
 
-## Example Prompts
+## Example Prompts and Usecases
 
-The following prompts are known to work:
-
+### Generate IaC
 - `aiac get terraform for a highly available eks`
 - `aiac get pulumi golang for an s3 with sns notification`
+- `aiac get cloudformation for a neptundb`
+
+### Generate Configuration Files
 - `aiac get dockerfile for a secured nginx`
-- `aiac get cloudformaion for a neptondb`
 - `aiac get k8s manifest for a mongodb deployment`
+
+### Generate CICD Pipelines
+- `aiac get jenkins pipelie for building nodejs`
 - `aiac get github action which plan and apply terraform and send slack notification`
+
+### Policy as Code
+- `aiac get opa policy that enforces readiness probe at k8s deployments`
+
+### Shell Scripts
+- `aiac get bash script that is killing all active terminal sessions`
 
 ## Example Output
 
