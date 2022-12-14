@@ -55,7 +55,7 @@ By default, aiac prints the extracted code to standard output and asks if it sho
 
 To store the resulting code to a file:
 
-    aiac -o "aws_ec2.tf" get terraform for AWS EC2
+    aiac -o aws_ec2.tf get terraform for AWS EC2
          
 To run using `docker`
 
@@ -76,7 +76,7 @@ To run using `docker`
 - `aiac get k8s manifest for a mongodb deployment`
 
 ### Generate CICD Pipelines
-- `aiac get jenkins pipelie for building nodejs`
+- `aiac get jenkins pipeline for building nodejs`
 - `aiac get github action which plan and apply terraform and send slack notification`
 
 ### Policy as Code
