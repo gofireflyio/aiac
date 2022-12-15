@@ -9,23 +9,53 @@ Generator.
 <!-- vim-markdown-toc GFM -->
 
 * [Description](#description)
+* [Use Cases](#use-cases-and-example-prompts)
 * [Quick Start](#quick-start)
-    * [Usage via OpenAI API](#usage-via-openai-api)
-    * [Usage via ChatGPT](#usage-via-chatgpt)
-* [Example Prompts](#example-prompts-and-usecases)
 * [Example Output](#example-output)
-* [Acknowledgements](#acknowledgements)
 * [License](#license)
 
 <!-- vim-markdown-toc -->
 
 ## Description
 
-`aiac` is a command line tool to generate IaC (Infrastructure as Code) templates
+`aiac` is a command line tool to generate IaC (Infrastructure as Code) templates, configurations, utilities, queries and more
 via [OpenAI](https://openai.com/)'s API. The CLI allows you to ask the model to generate templates
 for different scenarios (e.g. "get terraform for AWS EC2"). It will make the
 request, and store the resulting code to a file, or simply print it to standard
 output.
+
+## Use Cases and Example Prompts
+
+### Generate IaC
+- `aiac get terraform for a highly available eks`
+- `aiac get pulumi golang for an s3 with sns notification`
+- `aiac get cloudformation for a neptundb`
+
+### Generate Configuration Files
+- `aiac get dockerfile for a secured nginx`
+- `aiac get k8s manifest for a mongodb deployment`
+
+### Generate CICD Pipelines
+- `aiac get jenkins pipeline for building nodejs`
+- `aiac get github action that plans and applies terraform and sends a slack notification`
+
+### Generate Policy as Code
+- `aiac get opa policy that enforces readiness probe at k8s deployments`
+
+### Generate Utilities
+- `aiac get python code that scans all open ports in my network`
+- `aiac get bash script that kills all active terminal sessions`
+
+### Command Line Builder
+- `aiac get kubectl that gets ExternalIPs of all nodes`
+- `aiac get awscli that lists instances with public IP address and Name`
+
+### Query Builder
+- `aiac get mongo query that aggregates all documents by created date`
+- `aiac get elastic query that applies a condition on a value greater than some value in aggregation`
+- `aiac get sql query that counts the appearances of each row in one table in another table based on an id column`
+
+
 
 ## Quick Start
 
@@ -64,29 +94,7 @@ To run using `docker`
     -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
     ghcr.io/gofireflyio/aiac get terraform for ec2
 
-## Example Prompts and Usecases
-
-### Generate IaC
-- `aiac get terraform for a highly available eks`
-- `aiac get pulumi golang for an s3 with sns notification`
-- `aiac get cloudformation for a neptundb`
-
-### Generate Configuration Files
-- `aiac get dockerfile for a secured nginx`
-- `aiac get k8s manifest for a mongodb deployment`
-
-### Generate CICD Pipelines
-- `aiac get jenkins pipeline for building nodejs`
-- `aiac get github action which plan and apply terraform and send slack notification`
-
-### Policy as Code
-- `aiac get opa policy that enforces readiness probe at k8s deployments`
-
-### Shell Scripts
-- `aiac get bash script that is killing all active terminal sessions`
-
 ## Example Output
-
 Command line prompt:
 
     aiac get dockerfile for nodejs with comments
@@ -114,6 +122,12 @@ COPY . .
 EXPOSE 8080
 CMD [ "node", "index.js" ]
 ```
+
+## Support Channels
+
+We have two main channels for supporting AIaC
+users: [Slack community](https://join.slack.com/t/firefly-community/shared_invite/zt-1m0d5c740-EhHAAFV5mhYBNXxcMWJp7g)
+and [GitHub issues](https://github.com/gofireflyio/aiac/issues) for defect reports and enhancement requests.
 
 ## License
 
