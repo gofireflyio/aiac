@@ -12,6 +12,7 @@ Generator.
 * [Use Cases](#use-cases-and-example-prompts)
 * [Quick Start](#quick-start)
 * [Example Output](#example-output)
+* [Support Channels](#support-channels)
 * [License](#license)
 
 <!-- vim-markdown-toc -->
@@ -125,9 +126,10 @@ CMD [ "node", "index.js" ]
 
 ## Support Channels
 
-We have two main channels for supporting AIaC
-users: [Slack community](https://join.slack.com/t/firefly-community/shared_invite/zt-1m0d5c740-EhHAAFV5mhYBNXxcMWJp7g)
-and [GitHub issues](https://github.com/gofireflyio/aiac/issues) for defect reports and enhancement requests.
+We have two main channels for supporting AIaC:
+
+1. [Slack community](https://join.slack.com/t/firefly-community/shared_invite/zt-1m0d5c740-EhHAAFV5mhYBNXxcMWJp7g): general user support and engagement.
+2. [GitHub Issues](https://github.com/gofireflyio/aiac/issues): bug reports and enhancement requests.
 
 ## License
 
