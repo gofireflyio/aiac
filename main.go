@@ -37,7 +37,7 @@ func main() {
 	cmd := kong.Parse(&cli)
 
 	if cmd.Command() != "get <what>" {
-		fmt.Fprintln(os.Stderr, "Unknown command")
+		_, _ = fmt.Fprintln(os.Stderr, "Unknown command")
 		os.Exit(1)
 	}
 
@@ -46,7 +46,7 @@ func main() {
 	if !cli.ChatGPT {
 		token = cli.APIKey
 		if token == "" {
-			fmt.Fprintf(os.Stderr, "You must provide an OpenAI API key\n")
+			_, _ = fmt.Fprintf(os.Stderr, "You must provide an OpenAI API key\n")
 			os.Exit(1)
 		}
 	} else {
@@ -56,7 +56,7 @@ func main() {
 			token, ok = os.LookupEnv("CHATGPT_SESSION_TOKEN")
 
 			if !ok {
-				fmt.Fprintf(os.Stderr, "You must provide a ChatGPT session token\n")
+				_, _ = fmt.Fprintf(os.Stderr, "You must provide a ChatGPT session token\n")
 				os.Exit(1)
 			}
 		}
@@ -85,13 +85,13 @@ func main() {
 	)
 	if err != nil {
 		if errors.Is(err, libaiac.ErrNoCode) {
-			fmt.Fprintln(
+			_, _ = fmt.Fprintln(
 				os.Stderr,
 				"It doesn't look like ChatGPT generated any code, please make "+
 					"sure that you're prompt properly guides ChatGPT to do so.",
 			)
 		} else {
-			fmt.Fprintf(os.Stderr, "Request failed: %s\n", err)
+			_, _ = fmt.Fprintf(os.Stderr, "Request failed: %s\n", err)
 		}
 		os.Exit(1)
 	}

@@ -7,13 +7,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/fatih/color"
 	"io"
 	"net/http"
 	"os"
 	"path/filepath"
 	"strings"
 	"time"
+
+	"github.com/fatih/color"
 
 	"github.com/adrg/xdg"
 	"github.com/briandowns/spinner"
@@ -29,9 +30,14 @@ const (
 	CloudflareTokenCookie = "cf_clearance"
 	CloudflareBmCookie    = "__cf_bm"
 	CallbackURLCookie     = "__Secure-next-auth.callback-url"
+	OpenAI                = "https://api.openai.com/v1"
 )
 
-var ErrNoCode = errors.New("no code generated")
+var (
+	AuthorizationHeader = "Authorization"
+	BearerHeader        = "Bearer %s"
+	ErrNoCode           = errors.New("no code generated")
+)
 
 type Client struct {
 	*requests.HTTPClient
@@ -60,9 +66,9 @@ func NewClient(input *AIACClientInput) *Client {
 	}
 
 	if !cli.chatGPT {
-		cli.HTTPClient = requests.NewClient("https://api.openai.com/v1").
+		cli.HTTPClient = requests.NewClient(OpenAI).
 			Accept("application/json").
-			Header("Authorization", fmt.Sprintf("Bearer %s", cli.token)).
+			Header(AuthorizationHeader, fmt.Sprintf(BearerHeader, cli.token)).
 			ErrorHandler(func(
 				httpStatus int,
 				contentType string,
@@ -130,12 +136,12 @@ func (client *Client) Ask(
 		return err
 	}
 
-	code = fmt.Sprintf("%s\n", code)
+	code = code + "\n"
 
 	spin.Stop()
 	killed = true
 
-	fmt.Fprintf(os.Stdout, code)
+	_, _ = fmt.Fprint(os.Stdout, code)
 	if shouldQuit {
 		return nil
 	}
@@ -144,7 +150,7 @@ func (client *Client) Ask(
 			Label: "Hit [S/s] to save the file or [R/r] to retry [Q/q] to quit",
 			Validate: func(s string) error {
 				if strings.ToLower(s) != "s" && strings.ToLower(s) != "r" && strings.ToLower(s) != "q" {
-					return fmt.Errorf("Invalid input. Try again please.")
+					return fmt.Errorf("invalid input [%s]. Try again please", s)
 				}
 				return nil
 			},
@@ -180,9 +186,9 @@ func (client *Client) Ask(
 		)
 	}
 
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
-	fmt.Fprint(f, code)
+	_, _ = fmt.Fprint(f, code)
 
 	if readmePath != "" {
 		f, err := os.Create(readmePath)
@@ -195,7 +201,7 @@ func (client *Client) Ask(
 
 		defer f.Close()
 
-		fmt.Fprintf(f, readme)
+		_, _ = fmt.Fprint(f, readme)
 	}
 
 	if outputPath != "-" {
@@ -251,10 +257,10 @@ func (client *Client) askViaChatGPT(ctx context.Context, prompt string) (
 
 	messages := make(chan []byte)
 
-	err = client.NewRequest("POST", "/backend-api/conversation").
+	err = client.NewRequest(http.MethodPost, "/backend-api/conversation").
 		Accept("text/event-stream").
 		JSONBody(body).
-		Header("Authorization", fmt.Sprintf("Bearer %s", accessToken)).
+		Header(AuthorizationHeader, fmt.Sprintf(BearerHeader, accessToken)).
 		Cookie(&http.Cookie{
 			Name:   CallbackURLCookie,
 			Value:  "https://" + ChatGPTHost + "/",
@@ -301,7 +307,7 @@ func (client *Client) askViaChatGPT(ctx context.Context, prompt string) (
 	for bmsg := range messages {
 		bmsg = bytes.TrimSpace(bytes.TrimPrefix(bmsg, []byte("data: ")))
 
-		if bytes.Compare(bmsg, []byte{'[', 'D', 'O', 'N', 'E', ']'}) == 0 {
+		if !bytes.Equal(bmsg, []byte{'[', 'D', 'O', 'N', 'E', ']'}) {
 			break
 		}
 
@@ -337,7 +343,7 @@ func (client *Client) askViaChatGPT(ctx context.Context, prompt string) (
 				}
 			}
 		} else if writeOutput {
-			fmt.Fprintln(&b, line)
+			_, _ = fmt.Fprintln(&b, line)
 		}
 	}
 
@@ -393,7 +399,7 @@ func (client *Client) loadAccessToken(ctx context.Context) (token string, err er
 	// try to load access token from cache file
 	f, err := os.Open(filepath.Join(xdg.ConfigHome, "aiac.token"))
 	if err == nil {
-		defer f.Close()
+		defer func() { _ = f.Close() }()
 
 		var tokenData CacheFile
 		err = json.NewDecoder(f).Decode(&tokenData)
@@ -445,7 +451,7 @@ func cacheAccessToken(token string) error {
 		return fmt.Errorf("failed creating token file: %w", err)
 	}
 
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	err = json.NewEncoder(f).Encode(CacheFile{
 		AccessToken: token,
