@@ -135,7 +135,7 @@ func (client *Client) Ask(
 	spin.Stop()
 	killed = true
 
-	fmt.Fprintf(os.Stdout, code)
+	fmt.Fprint(os.Stdout, code)
 	if shouldQuit {
 		return nil
 	}
