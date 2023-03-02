@@ -167,17 +167,22 @@ func (client *Client) GenerateCode(ctx context.Context, prompt string) (
 ) {
 	var answer struct {
 		Choices []struct {
-			Text         string `json:"text"`
+			Message struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"message"`
 			Index        int64  `json:"index"`
 			FinishReason string `json:"finish_reason"`
 		} `json:"choices"`
 	}
 
 	var status int
-	err = client.NewRequest("POST", "/completions").
+	err = client.NewRequest("POST", "/chat/completions").
 		JSONBody(map[string]interface{}{
-			"model":      "text-davinci-003",
-			"prompt":     prompt,
+			"model": "gpt-3.5-turbo",
+			"messages": []map[string]string{
+				{"role": "user", "content": prompt},
+			},
 			"max_tokens": 4097 - len(prompt),
 		}).
 		Into(&answer).
@@ -197,6 +202,5 @@ func (client *Client) GenerateCode(ctx context.Context, prompt string) (
 			answer.Choices[0].FinishReason,
 		)
 	}
-
-	return strings.TrimSpace(answer.Choices[0].Text), nil
+	return strings.TrimSpace(answer.Choices[0].Message.Content), nil
 }
