@@ -17,9 +17,11 @@ Generator.
     * [Generate Utilities](#generate-utilities)
     * [Command Line Builder](#command-line-builder)
     * [Query Builder](#query-builder)
-* [Quick Start](#quick-start)
-    * [Instructions](#instructions)
+* [Instructions](#instructions)
+    * [Installation](#installation)
+    * [Usage](#usage)
 * [Example Output](#example-output)
+* [Troubleshooting](#troubleshooting)
 * [Support Channels](#support-channels)
 * [License](#license)
 
@@ -71,17 +73,24 @@ output.
 - `aiac get elastic query that applies a condition on a value greater than some value in aggregation`
 - `aiac get sql query that counts the appearances of each row in one table in another table based on an id column`
 
-## Quick Start
+## Instructions
 
-First, install `aiac`:
+You will need to provide an OpenAI API key in order for `aiac` to work. Refer to
+[OpenAI's pricing model](https://openai.com/pricing?trk=public_post-text) for
+more information. As of this writing, you get $5 in free credits upon signin up,
+but generally speaking, this is a paid API.
+
+### Installation
+
+Via `brew`:
 
     brew install gofireflyio/aiac/aiac
 
-Or using `docker`:
+Using `docker`:
 
     docker pull ghcr.io/gofireflyio/aiac
 
-Or using `go install`:
+Using `go install`:
 
     go install github.com/gofireflyio/aiac/v2
 
@@ -90,11 +99,11 @@ Alternatively, clone the repository and build from source:
     git clone https://github.com/gofireflyio/aiac.git
     go build
 
-### Instructions
+### Usage
 
 1. Create your OpenAI API key [here](https://beta.openai.com/account/api-keys).
-1. Click “Create new secret key” and copy it.
-1. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
+2. Click “Create new secret key” and copy it.
+3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
 
 By default, aiac prints the extracted code to standard output and asks if it
 should save or regenerate the code:
@@ -141,6 +150,22 @@ COPY . .
 EXPOSE 8080
 CMD [ "node", "index.js" ]
 ```
+
+## Troubleshooting
+
+`aiac` is a command line client to OpenAI's API. Most errors that you are likely
+to encounter are coming from this API. Some common errors you may encounter are:
+
+- "[insufficient_quota] You exceeded your current quota, please check your plan and billing details":
+  As described in the [Instructions](#instructions) section, OpenAI is a paid API with a certain
+  amount of free credits given. This error means you have exceeded your quota,
+  whether free or paid. You will need to top up to continue usage.
+
+- "[tokens] Rate limit reached...":
+  The OpenAI API employs rate limiting as [described here](https://platform.openai.com/docs/guides/rate-limits/request-increase). `aiac` only performs
+  individual requests and cannot workaround or prevent these rate limits. If
+  you are using `aiac` in an application, you will have to implement throttling
+  yourself.
 
 ## Support Channels
 
