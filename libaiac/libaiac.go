@@ -3,13 +3,16 @@ package libaiac
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"regexp"
 	"strings"
 	"time"
 
+	"github.com/alecthomas/kong"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/ido50/requests"
@@ -20,7 +23,78 @@ import (
 type Client struct {
 	*requests.HTTPClient
 	apiKey string
+	model  Model
+	full   bool
 }
+
+var (
+	// ErrResultTruncated is returned when the OpenAI API returned a truncated
+	// result. The reason for the truncation will be appended to the error
+	// string.
+	ErrResultTruncated = errors.New("result was truncated")
+
+	// ErrNoResults is returned if the OpenAI API returned an empty result. This
+	// should not generally happen.
+	ErrNoResults = errors.New("no results return from API")
+
+	// ErrUnsupportedModel is returned if the SetModel method is provided with
+	// an unsupported model
+	ErrUnsupportedModel = errors.New("unsupported model")
+
+	// ErrUnexpectedStatus is returned when the OpenAI API returned a response
+	// with an unexpected status code
+	ErrUnexpectedStatus = errors.New("OpenAI returned unexpected response")
+
+	// ErrRequestFailed is returned when the OpenAI API returned an error for
+	// the request
+	ErrRequestFailed = errors.New("request failed")
+)
+
+// Model is an enum used to select the language model to use
+type Model string
+
+const (
+	// ModelChatGPT represents the gpt-3.5-turbo model used by ChatGPT.
+	ModelChatGPT = "gpt-3.5-turbo"
+
+	// ModelTextDaVinci3 represents the text-davinci-003 language generation
+	// model.
+	ModelTextDaVinci3 = "text-davinci-003"
+
+	// ModelCodeDaVinci2 represents the code-davinci-002 code generation model.
+	ModelCodeDaVinci2 = "code-davinci-002"
+)
+
+// Decode is used by the kong library to map CLI-provided values to the Model
+// type
+func (m *Model) Decode(ctx *kong.DecodeContext) error {
+	var provided string
+
+	err := ctx.Scan.PopValueInto("string", &provided)
+	if err != nil {
+		return fmt.Errorf("failed getting model value: %w", err)
+	}
+
+	for _, supported := range []Model{
+		ModelChatGPT,
+		ModelTextDaVinci3,
+		ModelCodeDaVinci2,
+	} {
+		if string(supported) == provided {
+			*m = supported
+			return nil
+		}
+	}
+
+	return fmt.Errorf("%w %s", ErrUnsupportedModel, provided)
+}
+
+// SupportedModels is a list of all models supported by aiac
+var SupportedModels = []string{ModelChatGPT, ModelTextDaVinci3, ModelCodeDaVinci2}
+
+// MaxTokens is the maximum amount of tokens supported by the model used. Newer
+// OpenAI models support a maximum of 4096 tokens.
+var MaxTokens = 4096
 
 // NewClient creates a new instance of the Client struct, with the provided
 // input options. Neither the OpenAI API nor ChatGPT are yet contacted at this
@@ -32,6 +106,7 @@ func NewClient(apiKey string) *Client {
 
 	cli := &Client{
 		apiKey: strings.TrimPrefix(apiKey, "Bearer "),
+		model:  ModelChatGPT,
 	}
 
 	cli.HTTPClient = requests.NewClient("https://api.openai.com/v1").
@@ -52,15 +127,35 @@ func NewClient(apiKey string) *Client {
 			err := json.NewDecoder(body).Decode(&res)
 			if err != nil {
 				return fmt.Errorf(
-					"OpenAI returned response %s",
+					"%w %s",
+					ErrUnexpectedStatus,
 					http.StatusText(httpStatus),
 				)
 			}
 
-			return fmt.Errorf("[%s] %s", res.Error.Type, res.Error.Message)
+			return fmt.Errorf(
+				"%w: [%s]: %s",
+				ErrRequestFailed,
+				res.Error.Type,
+				res.Error.Message,
+			)
 		})
 
 	return cli
+}
+
+// SetModel changes the language model to use with the OpenAI API
+func (client *Client) SetModel(model Model) *Client {
+	client.model = model
+	return client
+}
+
+// SetFull sets whether output is returned/stored in full, including
+// explanations (if any), or if only the code is extracted. Defaults to false
+// (meaning only code is extracted).
+func (client *Client) SetFull(full bool) *Client {
+	client.full = full
+	return client
 }
 
 // Ask asks the OpenAI API to generate code based on the provided prompt.
@@ -81,10 +176,12 @@ func (client *Client) Ask(
 	outputPath string,
 ) (err error) {
 	spin := spinner.New(spinner.CharSets[2],
-		100*time.Millisecond,
+		100*time.Millisecond, //nolint: gomnd
 		spinner.WithWriter(color.Error),
 		spinner.WithSuffix("\tGenerating code ..."))
+
 	spin.Start()
+
 	killed := false
 
 	defer func() {
@@ -99,6 +196,7 @@ func (client *Client) Ask(
 	}
 
 	spin.Stop()
+
 	killed = true
 
 	fmt.Fprintln(os.Stdout, code)
@@ -108,24 +206,49 @@ func (client *Client) Ask(
 	}
 
 	if shouldRetry {
+		errInvalidInput := errors.New("invalid input, please try again") //nolint: goerr113
+
 		input := promptui.Prompt{
-			Label: "Hit [S/s] to save the file or [R/r] to retry [Q/q] to quit",
+			Label: "Hit [S/s] to save the file, [R/r] to retry, [M/m] to modify prompt, [Q/q] to quit",
 			Validate: func(s string) error {
-				if strings.ToLower(s) != "s" && strings.ToLower(s) != "r" && strings.ToLower(s) != "q" {
-					return fmt.Errorf("Invalid input. Try again please.")
+				switch strings.ToLower(s) {
+				case "s", "r", "m", "q":
+					return nil
 				}
-				return nil
+
+				return errInvalidInput
 			},
 		}
 
 		result, err := input.Run()
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				return nil
+			}
 
-		if strings.ToLower(result) == "q" {
-			// finish without saving
-			return nil
-		} else if err != nil || strings.ToLower(result) == "r" {
+			return fmt.Errorf("prompt failed: %w", err)
+		}
+
+		switch strings.ToLower(result) {
+		case "r":
 			// retry once more
 			return client.Ask(ctx, prompt, shouldRetry, shouldQuit, outputPath)
+		case "m":
+			// let user modify prompt
+			input := promptui.Prompt{
+				Label:   "New prompt",
+				Default: prompt,
+			}
+
+			prompt, err = input.Run()
+			if err != nil {
+				return fmt.Errorf("prompt failed: %w", err)
+			}
+
+			return client.Ask(ctx, prompt, shouldRetry, shouldQuit, outputPath)
+		case "q":
+			// finish without saving
+			return nil
 		}
 	}
 
@@ -136,7 +259,7 @@ func (client *Client) Ask(
 
 		outputPath, err = input.Run()
 		if err != nil {
-			return err
+			return fmt.Errorf("prompt failed: %w", err)
 		}
 	}
 
@@ -159,12 +282,84 @@ func (client *Client) Ask(
 	return nil
 }
 
+var codeRegex = regexp.MustCompile("(?ms)^```(?:[^\n]*)\n(.*?)\n```$")
+
 // GenerateCode sends the provided prompt to the OpenAI API and returns the
 // generated code.
 func (client *Client) GenerateCode(ctx context.Context, prompt string) (
 	code string,
 	err error,
 ) {
+	if client.model == ModelChatGPT {
+		code, err = client.generateWithChatModel(ctx, prompt)
+	} else {
+		code, err = client.generateWithCompletionsModel(ctx, prompt)
+	}
+
+	if err != nil {
+		return "", err
+	}
+
+	if client.full {
+		return code, nil
+	}
+
+	m := codeRegex.FindStringSubmatch(code)
+	if m == nil || m[1] == "" {
+		return code, nil
+	}
+
+	return m[1], nil
+}
+
+func (client *Client) generateWithChatModel(ctx context.Context, prompt string) (
+	code string,
+	err error,
+) {
+	var answer struct {
+		Choices []struct {
+			Message struct {
+				Role    string `json:"role"`
+				Content string `json:"content"`
+			} `json:"message"`
+			Index        int64  `json:"index"`
+			FinishReason string `json:"finish_reason"`
+		} `json:"choices"`
+	}
+
+	err = client.NewRequest("POST", "/chat/completions").
+		JSONBody(map[string]interface{}{
+			"model": client.model,
+			"messages": []map[string]string{
+				{"role": "user", "content": prompt},
+			},
+			"max_tokens": MaxTokens + 1 - len(prompt),
+		}).
+		Into(&answer).
+		RunContext(ctx)
+	if err != nil {
+		return code, fmt.Errorf("failed sending prompt: %w", err)
+	}
+
+	if len(answer.Choices) == 0 {
+		return code, ErrNoResults
+	}
+
+	if answer.Choices[0].FinishReason != "stop" {
+		return code, fmt.Errorf(
+			"%w: %s",
+			ErrResultTruncated,
+			answer.Choices[0].FinishReason,
+		)
+	}
+
+	return strings.TrimSpace(answer.Choices[0].Message.Content), nil
+}
+
+func (client *Client) generateWithCompletionsModel(
+	ctx context.Context,
+	prompt string,
+) (code string, err error) {
 	var answer struct {
 		Choices []struct {
 			Text         string `json:"text"`
@@ -173,27 +368,26 @@ func (client *Client) GenerateCode(ctx context.Context, prompt string) (
 		} `json:"choices"`
 	}
 
-	var status int
 	err = client.NewRequest("POST", "/completions").
 		JSONBody(map[string]interface{}{
-			"model":      "text-davinci-003",
+			"model":      client.model,
 			"prompt":     prompt,
-			"max_tokens": 4097 - len(prompt),
+			"max_tokens": MaxTokens + 1 - len(prompt),
 		}).
 		Into(&answer).
-		StatusInto(&status).
 		RunContext(ctx)
 	if err != nil {
 		return code, fmt.Errorf("failed sending prompt: %w", err)
 	}
 
 	if len(answer.Choices) == 0 {
-		return code, fmt.Errorf("no results returned from API")
+		return code, ErrNoResults
 	}
 
 	if answer.Choices[0].FinishReason != "stop" {
 		return code, fmt.Errorf(
-			"result was truncated by API due to %s",
+			"%w: %s",
+			ErrResultTruncated,
 			answer.Choices[0].FinishReason,
 		)
 	}

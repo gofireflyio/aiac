@@ -20,6 +20,7 @@ Generator.
 * [Instructions](#instructions)
     * [Installation](#installation)
     * [Usage](#usage)
+    * [Choosing a Different Model](#choosing-a-different-model)
 * [Example Output](#example-output)
 * [Troubleshooting](#troubleshooting)
 * [Support Channels](#support-channels)
@@ -33,7 +34,8 @@ Generator.
 via [OpenAI](https://openai.com/)'s API. The CLI allows you to ask the model to generate templates
 for different scenarios (e.g. "get terraform for AWS EC2"). It will make the
 request, and store the resulting code to a file, or simply print it to standard
-output.
+output. By default, `aiac` uses the same model used by ChatGPT, but allows using
+different models.
 
 ## Use Cases and Example Prompts
 
@@ -101,12 +103,12 @@ Alternatively, clone the repository and build from source:
 
 ### Usage
 
-1. Create your OpenAI API key [here](https://beta.openai.com/account/api-keys).
+1. Create your OpenAI API key [here](platform.openai.com/account/api-keys).
 2. Click “Create new secret key” and copy it.
 3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
 
 By default, aiac prints the extracted code to standard output and asks if it
-should save or regenerate the code:
+should save the code, regenerate it, or modify the prompt:
 
     aiac get terraform for AWS EC2
 
@@ -120,6 +122,15 @@ To run using `docker`:
     -it \
     -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
     ghcr.io/gofireflyio/aiac get terraform for ec2
+
+If you want to receive and/or store the complete Markdown output from OpenAI,
+including explanations (if any), use the `--full` flag.
+
+### Choosing a Different Model
+
+Use the `--model` flag to select a different model than the default (currently
+"gpt-3.5-turbo"). Not all OpenAI models are supported, use `aiac list-models`
+to get a list of all supported models.
 
 ## Example Output
 
