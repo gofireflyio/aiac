@@ -18,7 +18,7 @@ type flags struct {
 	Save       bool     `help:"Save AIaC response without retry prompt" default:"false" short:"s"`
 	Get        struct {
 		Full  bool          `help:"Return full output, including explanations, if any" default:"false" short:"f"`
-		Model libaiac.Model `help:"Model to use"`
+		Model libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
 		What  []string      `arg:"" help:"Which IaC template to generate"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 }

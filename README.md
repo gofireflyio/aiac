@@ -94,7 +94,7 @@ Using `docker`:
 
 Using `go install`:
 
-    go install github.com/gofireflyio/aiac/v2
+    go install github.com/gofireflyio/aiac/v2@latest
 
 Alternatively, clone the repository and build from source:
 
