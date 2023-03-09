@@ -24,6 +24,9 @@ linters:
     - promlinter
     - testpackage
     - varnamelen
+    - nonamedreturns
+    - tagliatelle
+    - exhaustruct
 issues:
   new: true
   new-from-rev: HEAD
