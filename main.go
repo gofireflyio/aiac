@@ -11,15 +11,15 @@ import (
 )
 
 type flags struct {
-	APIKey     string   `help:"OpenAI API key" required:"" env:"OPENAI_API_KEY"`
-	ListModels struct{} `cmd:"" help:"List supported models"`
-	OutputFile string   `help:"Output file to push resulting code to, defaults to stdout" default:"-" type:"path" short:"o"` //nolint: lll
-	Quiet      bool     `help:"Print AIaC response to stdout and exit (non-interactive mode)" default:"false" short:"q"`
-	Save       bool     `help:"Save AIaC response without retry prompt" default:"false" short:"s"`
+	APIKey     string        `help:"OpenAI API key" required:"" env:"OPENAI_API_KEY"`
+	ListModels struct{}      `cmd:"" help:"List supported models"`
+	OutputFile string        `help:"Output file to push resulting code to, defaults to stdout" default:"-" type:"path" short:"o"` //nolint: lll
+	Quiet      bool          `help:"Print AIaC response to stdout and exit (non-interactive mode)" default:"false" short:"q"`
+	Save       bool          `help:"Save AIaC response without retry prompt" default:"false" short:"s"`
+	Full       bool          `help:"Return full output, including explanations, if any" default:"false" short:"f"`
+	Model      libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
 	Get        struct {
-		Full  bool          `help:"Return full output, including explanations, if any" default:"false" short:"f"`
-		Model libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
-		What  []string      `arg:"" help:"Which IaC template to generate"`
+		What []string `arg:"" help:"Which IaC template to generate"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 }
 
@@ -63,10 +63,10 @@ Get your API key from https://platform.openai.com/account/api-keys.`)
 	}
 
 	client := libaiac.NewClient(cli.APIKey).
-		SetFull(cli.Get.Full)
+		SetFull(cli.Full)
 
-	if cli.Get.Model != "" {
-		client.SetModel(cli.Get.Model)
+	if cli.Model != "" {
+		client.SetModel(cli.Model)
 	}
 
 	err = client.Ask(
@@ -74,7 +74,7 @@ Get your API key from https://platform.openai.com/account/api-keys.`)
 		// NOTE: we are prepending the word "generate" to the prompt, this
 		// ensures the language model actually generates code. The word "get",
 		// on the other hand, doesn't necessarily result in code being generated.
-		fmt.Sprintf("generate code for a %s", strings.Join(cli.Get.What, " ")),
+		fmt.Sprintf("generate sample code for a %s", strings.Join(cli.Get.What, " ")),
 		!cli.Save,
 		cli.Quiet,
 		cli.OutputFile,

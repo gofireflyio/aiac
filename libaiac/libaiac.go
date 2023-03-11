@@ -252,7 +252,7 @@ func (client *Client) Ask(
 		}
 	}
 
-	if outputPath == "" {
+	if !shouldQuit && (outputPath == "" || outputPath == "-") {
 		input := promptui.Prompt{
 			Label: "Enter a file path",
 		}
