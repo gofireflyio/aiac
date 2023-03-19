@@ -6,7 +6,7 @@ builds:
     ldflags:
       - -s -w
       - "-extldflags '-static'"
-      - -X main.version={{.Version}}
+      - -X 'github.com/gofireflyio/aiac/v3/libaiac.Version={{.Version}}'
     env:
       - CGO_ENABLED=0
     goos:
