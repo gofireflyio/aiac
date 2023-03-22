@@ -12,7 +12,7 @@ Generator.
 * [Use Cases and Example Prompts](#use-cases-and-example-prompts)
     * [Generate IaC](#generate-iac)
     * [Generate Configuration Files](#generate-configuration-files)
-    * [Generate CICD Pipelines](#generate-cicd-pipelines)
+    * [Generate CI/CD Pipelines](#generate-cicd-pipelines)
     * [Generate Policy as Code](#generate-policy-as-code)
     * [Generate Utilities](#generate-utilities)
     * [Command Line Builder](#command-line-builder)
@@ -20,7 +20,9 @@ Generator.
 * [Instructions](#instructions)
     * [Installation](#installation)
     * [Usage](#usage)
-    * [Choosing a Different Model](#choosing-a-different-model)
+        * [Command Line](#command-line)
+        * [Via Docker](#via-docker)
+        * [As a Library](#as-a-library)
 * [Example Output](#example-output)
 * [Troubleshooting](#troubleshooting)
 * [Support Channels](#support-channels)
@@ -50,7 +52,7 @@ different models.
 - `aiac get dockerfile for a secured nginx`
 - `aiac get k8s manifest for a mongodb deployment`
 
-### Generate CICD Pipelines
+### Generate CI/CD Pipelines
 
 - `aiac get jenkins pipeline for building nodejs`
 - `aiac get github action that plans and applies terraform and sends a slack notification`
@@ -79,7 +81,7 @@ different models.
 
 You will need to provide an OpenAI API key in order for `aiac` to work. Refer to
 [OpenAI's pricing model](https://openai.com/pricing?trk=public_post-text) for
-more information. As of this writing, you get $5 in free credits upon signin up,
+more information. As of this writing, you get $5 in free credits upon signing up,
 but generally speaking, this is a paid API.
 
 ### Installation
@@ -94,7 +96,7 @@ Using `docker`:
 
 Using `go install`:
 
-    go install github.com/gofireflyio/aiac/v2@latest
+    go install github.com/gofireflyio/aiac/v3@latest
 
 Alternatively, clone the repository and build from source:
 
@@ -107,30 +109,90 @@ Alternatively, clone the repository and build from source:
 2. Click “Create new secret key” and copy it.
 3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
 
-By default, aiac prints the extracted code to standard output and asks if it
-should save the code, regenerate it, or modify the prompt:
+#### Command Line
+
+By default, aiac prints the extracted code to standard output and opens an
+interactive shell that allows retrying requests, enabling chat mode (for chat
+models), saving output to files, and more:
 
     aiac get terraform for AWS EC2
 
-To store the resulting code to a file:
+You can ask it to also store the code to a specific file with a flag:
 
-    aiac -o aws_ec2.tf get terraform for AWS EC2
+    aiac get terraform for eks --output-file=eks.tf
 
-To run using `docker`:
+You can use a flag to save the complete Markdown output as well:
+
+    aiac get terraform for eks --output-file=eks.tf --readme-file=eks.md
+
+You can use aiac in non-interactive mode, simply printing the generated code
+to standard output, and optionally saving it to files with the above flags,
+by providing the `-q` or `--quiet` flag:
+
+    aiac get terraform for eks -q
+
+By default, aiac uses the gpt-3.5-turbo chat model, but other models are
+supported. You can list all supported models:
+
+    aiac list-models
+
+To generate code with a different model, provide the `--model` flag:
+
+    aiac get terraform for eks --model="text-davinci-003"
+
+#### Via Docker
+
+All the same instructions apply, except you execute a `docker` image:
 
     docker run \
-    -it \
-    -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
-    ghcr.io/gofireflyio/aiac get terraform for ec2
+        -it \
+        -e OPENAI_API_KEY=[PUT YOUR KEY HERE] \
+        ghcr.io/gofireflyio/aiac get terraform for ec2
 
-If you want to receive and/or store the complete Markdown output from OpenAI,
-including explanations (if any), use the `--full` flag.
+#### As a Library
 
-### Choosing a Different Model
+You can use aiac as a library:
 
-Use the `--model` flag to select a different model than the default (currently
-"gpt-3.5-turbo"). Not all OpenAI models are supported, use `aiac list-models`
-to get a list of all supported models.
+```go
+package main
+
+import (
+    "context"
+    "os"
+
+    "github.com/gofireflyio/aiac/v3/libaiac"
+)
+
+func main() {
+    client := libaiac.NewClient(os.Getenv("OPENAI_API_KEY"))
+    ctx    := context.TODO()
+
+    // use the model-agnostic wrapper
+    res, err := client.GenerateCode(
+        ctx,
+        libaiac.ModelTextDaVinci3,
+        "generate terraform for ec2",
+    )
+    if err != nil {
+        fmt.Fprintf(os.Stderr, "Failed generating code: %s\n", err)
+        os.Exit(1)
+    }
+
+    fmt.Fprintln(os.Stdout, res.Code)
+
+    // use the completion API (for completion-only models)
+    res, err = client.Complete(
+        ctx,
+        libaiac.ModelTextDaVinci3,
+        "generate terraform for ec2",
+    )
+
+    // converse via a chat model
+    chat := client.Chat(libaiac.ModelGPT35Turbo)
+    res, err = chat.Send(ctx, "generate terraform for eks")
+    res, err = chat.Send(ctx, "region must be eu-central-1")
+}
+```
 
 ## Example Output
 
@@ -175,8 +237,8 @@ to encounter are coming from this API. Some common errors you may encounter are:
 - "[tokens] Rate limit reached...":
   The OpenAI API employs rate limiting as [described here](https://platform.openai.com/docs/guides/rate-limits/request-increase). `aiac` only performs
   individual requests and cannot workaround or prevent these rate limits. If
-  you are using `aiac` in an application, you will have to implement throttling
-  yourself.
+  you are using `aiac` in programmatically, you will have to implement throttling
+  yourself. See [here](https://github.com/openai/openai-cookbook/blob/main/examples/How_to_handle_rate_limits.ipynb) for tips.
 
 ## Support Channels
 
