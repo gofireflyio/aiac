@@ -26,6 +26,7 @@ type flags struct {
 		OutputFile string        `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
 		ReadmeFile string        `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
 		Quiet      bool          `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
+		Full       bool          `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
 		Model      libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
 		What       []string      `arg:"" help:"Which IaC template to generate"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
@@ -161,7 +162,12 @@ ATTEMPTS:
 		} else {
 			spin.Stop()
 
-			fmt.Fprintln(os.Stdout, res.Code)
+			stdoutOutput := res.Code
+			if cli.Get.Full {
+				stdoutOutput = res.FullOutput
+			}
+
+			fmt.Fprintln(os.Stdout, stdoutOutput)
 
 			if cli.Get.Quiet {
 				break ATTEMPTS
