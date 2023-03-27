@@ -105,7 +105,7 @@ Alternatively, clone the repository and build from source:
 
 ### Usage
 
-1. Create your OpenAI API key [here](platform.openai.com/account/api-keys).
+1. Create your OpenAI API key [here](https://platform.openai.com/account/api-keys).
 2. Click “Create new secret key” and copy it.
 3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
 
