@@ -124,7 +124,7 @@ func generateCode(cli flags) error { //nolint: funlen, cyclop
 	// actually generates code.
 	prompt := fmt.Sprintf("Generate sample code for a %s", strings.Join(cli.Get.What, " "))
 
-	if cli.Get.ReadmeFile != "" {
+	if cli.Get.ReadmeFile != "" || cli.Get.Full {
 		prompt = fmt.Sprintf(
 			"Generate sample code for a %s. Include explanations.",
 			strings.Join(cli.Get.What, " "),
