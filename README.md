@@ -113,7 +113,7 @@ Alternatively, clone the repository and build from source:
 
 By default, aiac prints the extracted code to standard output and opens an
 interactive shell that allows retrying requests, enabling chat mode (for chat
-models), saving output to files, and more:
+models), saving output to files, copying code to clipboard, and more:
 
     aiac get terraform for AWS EC2
 
