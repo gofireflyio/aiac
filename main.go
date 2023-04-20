@@ -15,6 +15,7 @@ import (
 	"github.com/gofireflyio/aiac/v3/libaiac"
 	"github.com/manifoldco/promptui"
 	"github.com/rodaine/table"
+	"golang.design/x/clipboard"
 )
 
 type flags struct {
@@ -29,6 +30,7 @@ type flags struct {
 		Full       bool          `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
 		Model      libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
 		What       []string      `arg:"" help:"Which IaC template to generate"`
+		Clipboard  bool          `help:"Copy generated code to clipboard (in --quit mode)"` //nolint: lll
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 	Version struct{} `cmd:"" help:"Print aiac version and exit"`
 }
@@ -141,6 +143,17 @@ func generateCode(cli flags) error { //nolint: funlen, cyclop
 
 	ctx := context.TODO()
 
+	var clipboardInitialized bool
+	err = clipboard.Init()
+	if err != nil {
+		fmt.Fprintf(
+			os.Stderr,
+			"Failed initializing clipboard, will not be able to copy: %s\n", err,
+		)
+	} else {
+		clipboardInitialized = true
+	}
+
 ATTEMPTS:
 	for {
 		spin.Start()
@@ -187,66 +200,92 @@ ATTEMPTS:
 					options...,
 				)
 			}
-		}
 
-		var label strings.Builder
-		fmt.Fprintf(&label, "Hit ")
-		for i, opt := range options {
-			fmt.Fprintf(
-				&label,
-				"[%s/%s] to %s",
-				strings.ToUpper(opt[0]), opt[0], opt[1],
-			)
-
-			if i < len(options)-1 {
-				fmt.Fprintf(&label, ", ")
+			if clipboardInitialized {
+				options = append(options, [2]string{"y", "clipboard"})
 			}
 		}
 
-		input := promptui.Prompt{
-			Label: label.String(),
-			Validate: func(s string) error {
-				key := strings.ToLower(s)
-				for _, opt := range options {
-					if opt[0] == key {
-						return nil
+	PROMPT:
+		for {
+			var label strings.Builder
+			fmt.Fprintf(&label, "Hit ")
+			for i, opt := range options {
+				fmt.Fprintf(
+					&label,
+					"[%s/%s] to %s",
+					strings.ToUpper(opt[0]), opt[0], opt[1],
+				)
+
+				if i < len(options)-1 {
+					fmt.Fprintf(&label, ", ")
+				}
+			}
+
+			input := promptui.Prompt{
+				Label: label.String(),
+				Validate: func(s string) error {
+					key := strings.ToLower(s)
+					for _, opt := range options {
+						if opt[0] == key {
+							return nil
+						}
 					}
+
+					return errInvalidInput
+				},
+			}
+
+			result, err := input.Run()
+			if err != nil {
+				if errors.Is(err, io.EOF) {
+					return nil
 				}
 
-				return errInvalidInput
-			},
-		}
+				return fmt.Errorf("prompt failed: %w", err)
+			}
 
-		result, err := input.Run()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
+			switch strings.ToLower(result) {
+			case "r":
+				continue ATTEMPTS
+			case "q":
+				// finish without saving
 				return nil
-			}
+			case "y":
+				// copy code to clipboard
+				if clipboardInitialized {
+					err = clipboard.Init()
+					if err != nil {
+						fmt.Fprintf(
+							os.Stderr,
+							"Failed initializing clipboard: %s\n", err,
+						)
+					}
 
-			return fmt.Errorf("prompt failed: %w", err)
-		}
+					clipboardInitialized = true
+				}
 
-		switch strings.ToLower(result) {
-		case "r":
-			continue ATTEMPTS
-		case "q":
-			// finish without saving
-			return nil
-		case "c":
-			// continue chatting
-			input := promptui.Prompt{
-				Label: "New message",
-			}
+				clipboard.Write(clipboard.FmtText, []byte(res.Code))
 
-			prompt, err = input.Run()
-			for err != nil {
-				fmt.Fprintf(os.Stderr, "%s: please try again\n", err)
+				fmt.Fprintf(os.Stderr, "Generated code copied to clipboard.\n")
+
+				continue PROMPT
+			case "c":
+				// continue chatting
+				input := promptui.Prompt{
+					Label: "New message",
+				}
+
 				prompt, err = input.Run()
-			}
+				for err != nil {
+					fmt.Fprintf(os.Stderr, "%s: please try again\n", err)
+					prompt, err = input.Run()
+				}
 
-			continue ATTEMPTS
-		case "s":
-			break ATTEMPTS
+				continue ATTEMPTS
+			case "s":
+				break ATTEMPTS
+			}
 		}
 	}
 
