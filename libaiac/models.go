@@ -54,6 +54,21 @@ var (
 	// snapshot of gpt-3.5-turbo
 	ModelGPT35Turbo0301 = Model{"gpt-3.5-turbo-0301", 4096, ModelTypeChat}
 
+	// ModelGPT4 represents the gpt-4 model
+	ModelGPT4 = Model{"gpt-4", 8192, ModelTypeChat}
+
+	// ModelGPT40314 represents the gpt-4-0314 model, a March 14th 2023 snapshot
+	// of the gpt-4 model.
+	ModelGPT40314 = Model{"gpt-4-0314", 8192, ModelTypeChat}
+
+	// ModelGPT432K represents the gpt-4-32k model, which is the same as gpt-4,
+	// but with 4x the context length.
+	ModelGPT432K = Model{"gpt-4-32k", 32768, ModelTypeChat}
+
+	// ModelGPT432K0314 represents the gpt-4-32k-0314 model, a March 14th 2023
+	// snapshot of the gpt-4-32k model
+	ModelGPT432K0314 = Model{"gpt-4-32k-0314", 32768, ModelTypeChat}
+
 	// ModelTextDaVinci3 represents the text-davinci-003 language generation
 	// model.
 	ModelTextDaVinci3 = Model{"text-davinci-003", 4097, ModelTypeCompletion}
@@ -66,6 +81,10 @@ var (
 	SupportedModels = []Model{
 		ModelGPT35Turbo,
 		ModelGPT35Turbo0301,
+		ModelGPT4,
+		ModelGPT40314,
+		ModelGPT432K,
+		ModelGPT432K0314,
 		ModelTextDaVinci3,
 		ModelTextDaVinci2,
 	}
