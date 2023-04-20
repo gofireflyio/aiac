@@ -121,9 +121,14 @@ You can ask it to also store the code to a specific file with a flag:
 
     aiac get terraform for eks --output-file=eks.tf
 
-You can use a flag to save the complete Markdown output as well:
+You can use a flag to save the full Markdown output as well:
 
     aiac get terraform for eks --output-file=eks.tf --readme-file=eks.md
+
+If you prefer aiac to print the full Markdown output to standard output rather
+than the extracted code, use the `-f` or `--full` flag:
+
+    aiac get terraform for eks -f
 
 You can use aiac in non-interactive mode, simply printing the generated code
 to standard output, and optionally saving it to files with the above flags,
@@ -132,7 +137,7 @@ by providing the `-q` or `--quiet` flag:
     aiac get terraform for eks -q
 
 By default, aiac uses the gpt-3.5-turbo chat model, but other models are
-supported. You can list all supported models:
+supported, including gpt-4. You can list all supported models:
 
     aiac list-models
 
