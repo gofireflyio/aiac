@@ -30,7 +30,7 @@ type flags struct {
 		Full       bool          `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
 		Model      libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
 		What       []string      `arg:"" help:"Which IaC template to generate"`
-		Clipboard  bool          `help:"Copy generated code to clipboard (in --quit mode)"` //nolint: lll
+		Clipboard  bool          `help:"Copy generated code to clipboard (in --quiet mode)"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 	Version struct{} `cmd:"" help:"Print aiac version and exit"`
 }
@@ -183,6 +183,9 @@ ATTEMPTS:
 			fmt.Fprintln(os.Stdout, stdoutOutput)
 
 			if cli.Get.Quiet {
+				if cli.Get.Clipboard && clipboardInitialized {
+					<-clipboard.Write(clipboard.FmtText, []byte(stdoutOutput))
+				}
 				break ATTEMPTS
 			}
 
@@ -253,22 +256,8 @@ ATTEMPTS:
 				return nil
 			case "y":
 				// copy code to clipboard
-				if clipboardInitialized {
-					err = clipboard.Init()
-					if err != nil {
-						fmt.Fprintf(
-							os.Stderr,
-							"Failed initializing clipboard: %s\n", err,
-						)
-					}
-
-					clipboardInitialized = true
-				}
-
 				clipboard.Write(clipboard.FmtText, []byte(res.Code))
-
 				fmt.Fprintf(os.Stderr, "Generated code copied to clipboard.\n")
-
 				continue PROMPT
 			case "c":
 				// continue chatting

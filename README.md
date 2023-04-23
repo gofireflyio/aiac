@@ -136,6 +136,14 @@ by providing the `-q` or `--quiet` flag:
 
     aiac get terraform for eks -q
 
+In quiet mode, you can also send the resulting code to the clipboard by
+providing the `--clipboard` flag:
+
+    aiac get terraform for eks -q --clipboard
+
+Note that aiac will not exit in this case until the contents of the clipboard
+changes. This is due to the mechanics of the clipboard.
+
 By default, aiac uses the gpt-3.5-turbo chat model, but other models are
 supported, including gpt-4. You can list all supported models:
 
