@@ -12,17 +12,17 @@ import (
 type Conversation struct {
 	client   *Client
 	model    Model
-	messages []message
+	messages []Message
 }
 
-type message struct {
+type Message struct {
 	Role    string `json:"role"`
 	Content string `json:"content"`
 }
 
 type chatResponse struct {
 	Choices []struct {
-		Message      message `json:"message"`
+		Message      Message `json:"message"`
 		Index        int64   `json:"index"`
 		FinishReason string  `json:"finish_reason"`
 	} `json:"choices"`
@@ -49,13 +49,17 @@ func (client *Client) Chat(model Model) *Conversation {
 // To maintain context, all previous messages (whether from you to the API or
 // vice-versa) are sent as well, allowing you to ask the API to modify the
 // code it already generated.
-func (conv *Conversation) Send(ctx context.Context, prompt string) (
+func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Message) (
 	res Response,
 	err error,
 ) {
 	var answer chatResponse
 
-	conv.messages = append(conv.messages, message{
+	if len(msgs) > 0 {
+		conv.messages = append(conv.messages, msgs...)
+	}
+
+	conv.messages = append(conv.messages, Message{
 		Role:    "user",
 		Content: prompt,
 	})

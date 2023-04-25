@@ -67,7 +67,7 @@ func NewClient(apiKey string) *Client {
 		) error {
 			var res struct {
 				Error struct {
-					Message string `json:"message"`
+					Message string `json:"Message"`
 					Type    string `json:"type"`
 				} `json:"error"`
 			}
@@ -96,7 +96,7 @@ func NewClient(apiKey string) *Client {
 // API.
 type Response struct {
 	// FullOutput is the complete output returned by the API. This is generally
-	// a Markdown-formatted message that contains the generated code, plus
+	// a Markdown-formatted Message that contains the generated code, plus
 	// explanations, if any.
 	FullOutput string
 
@@ -120,10 +120,11 @@ func (client *Client) GenerateCode(
 	ctx context.Context,
 	model Model,
 	prompt string,
+	msgs ...Message,
 ) (res Response, err error) {
 	if model.Type == ModelTypeChat {
 		chat := client.Chat(model)
-		return chat.Send(ctx, prompt)
+		return chat.Send(ctx, prompt, msgs...)
 	}
 
 	return client.Complete(ctx, model, prompt)
