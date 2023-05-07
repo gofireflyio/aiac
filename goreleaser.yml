@@ -31,6 +31,8 @@ builds:
         goarch: arm
       - goos: freebsd
         goarch: arm64
+      - goos: freebsd
+        goarch: 386
 
 archives:
   -
