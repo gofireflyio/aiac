@@ -13,7 +13,6 @@ builds:
     goos:
       - darwin
       - linux
-      - freebsd
     goarch:
       - amd64
       - 386
@@ -25,13 +24,6 @@ builds:
       - 7
     ignore:
       - goos: darwin
-        goarch: 386
-      # modernc.org/sqlite doesn't support the following pairs
-      - goos: freebsd
-        goarch: arm
-      - goos: freebsd
-        goarch: arm64
-      - goos: freebsd
         goarch: 386
 
 archives:
