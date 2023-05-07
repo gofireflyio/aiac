@@ -9,6 +9,7 @@ builds:
       - -X 'github.com/gofireflyio/aiac/v3/libaiac.Version={{.Version}}'
     env:
       - CGO_ENABLED=1
+      - CC=arm-linux-gnueabi-gcc
     goos:
       - darwin
       - linux
