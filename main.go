@@ -10,12 +10,12 @@ import (
 	"time"
 
 	"github.com/alecthomas/kong"
+	"github.com/atotto/clipboard"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
 	"github.com/gofireflyio/aiac/v3/libaiac"
 	"github.com/manifoldco/promptui"
 	"github.com/rodaine/table"
-	"golang.design/x/clipboard"
 )
 
 type flags struct {
@@ -143,17 +143,6 @@ func generateCode(cli flags) error { //nolint: funlen, cyclop
 
 	ctx := context.TODO()
 
-	var clipboardInitialized bool
-	err = clipboard.Init()
-	if err != nil {
-		fmt.Fprintf(
-			os.Stderr,
-			"Failed initializing clipboard, will not be able to copy: %s\n", err,
-		)
-	} else {
-		clipboardInitialized = true
-	}
-
 ATTEMPTS:
 	for {
 		spin.Start()
@@ -183,8 +172,8 @@ ATTEMPTS:
 			fmt.Fprintln(os.Stdout, stdoutOutput)
 
 			if cli.Get.Quiet {
-				if cli.Get.Clipboard && clipboardInitialized {
-					<-clipboard.Write(clipboard.FmtText, []byte(stdoutOutput))
+				if cli.Get.Clipboard {
+					clipboard.WriteAll(stdoutOutput)
 				}
 				break ATTEMPTS
 			}
@@ -204,9 +193,7 @@ ATTEMPTS:
 				)
 			}
 
-			if clipboardInitialized {
-				options = append(options, [2]string{"y", "clipboard"})
-			}
+			options = append(options, [2]string{"y", "clipboard"})
 		}
 
 	PROMPT:
@@ -256,7 +243,7 @@ ATTEMPTS:
 				return nil
 			case "y":
 				// copy code to clipboard
-				clipboard.Write(clipboard.FmtText, []byte(res.Code))
+				clipboard.WriteAll(res.Code)
 				fmt.Fprintf(os.Stderr, "Generated code copied to clipboard.\n")
 				continue PROMPT
 			case "c":
