@@ -53,6 +53,9 @@ jobs:
         with:
           go-version-file: go.mod
 
+      - name: Install GCC arm
+        run: sudo apt-get install -y gcc-arm*
+
       - name: GoReleaser
         uses: goreleaser/goreleaser-action@v3
         with:
