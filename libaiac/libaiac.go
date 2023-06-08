@@ -16,10 +16,13 @@ import (
 // Version contains aiac's version string
 var Version = "development"
 
+const OpenAIBackend = "https://api.openai.com/v1"
+
 // Client is a structure used to continuously generate IaC code via OpenAPI/ChatGPT
 type Client struct {
 	*requests.HTTPClient
-	apiKey string
+	apiKey     string
+	apiVersion string
 }
 
 var (
@@ -45,21 +48,52 @@ var (
 	ErrRequestFailed = errors.New("request failed")
 )
 
+type NewClientOptions struct {
+	// APIKey is the OpenAI API key to use for requests. This is required.
+	ApiKey string
+
+	// ChatGPTURL is the URL to use for ChatGPT requests. This is optional nd by default to openai backend.
+	URL string
+
+	// APIVersion is the version of the OpenAI API to use. This is optional and by default to non specified.
+	APIVersion string
+}
+
 // NewClient creates a new instance of the Client struct, with the provided
 // input options. Neither the OpenAI API nor ChatGPT are yet contacted at this
 // point.
-func NewClient(apiKey string) *Client {
-	if apiKey == "" {
+func NewClient(opts *NewClientOptions) *Client {
+	if opts == nil {
 		return nil
 	}
 
-	cli := &Client{
-		apiKey: strings.TrimPrefix(apiKey, "Bearer "),
+	if opts.ApiKey == "" {
+		return nil
 	}
 
-	cli.HTTPClient = requests.NewClient("https://api.openai.com/v1").
+	if opts.URL == "" {
+		opts.URL = OpenAIBackend
+	}
+
+	var authHeaderKey string
+	var authHeaderVal string
+
+	if opts.URL == OpenAIBackend {
+		authHeaderKey = "Authorization"
+		authHeaderVal = fmt.Sprintf("Bearer %s", opts.ApiKey)
+	} else {
+		authHeaderKey = "api-key"
+		authHeaderVal = opts.ApiKey
+	}
+
+	cli := &Client{
+		apiKey:     strings.TrimPrefix(opts.ApiKey, "Bearer "),
+		apiVersion: opts.APIVersion,
+	}
+
+	cli.HTTPClient = requests.NewClient(opts.URL).
 		Accept("application/json").
-		Header("Authorization", fmt.Sprintf("Bearer %s", cli.apiKey)).
+		Header(authHeaderKey, authHeaderVal).
 		ErrorHandler(func(
 			httpStatus int,
 			contentType string,

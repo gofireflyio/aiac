@@ -64,7 +64,13 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Messa
 		Content: prompt,
 	})
 
-	err = conv.client.NewRequest("POST", "/chat/completions").
+	var apiVersion string
+	if len(conv.client.apiVersion) > 0 {
+		apiVersion = fmt.Sprintf("?api-version=%s", conv.client.apiVersion)
+	}
+
+	err = conv.client.NewRequest("POST",
+		fmt.Sprintf("/chat/completions%s", apiVersion)).
 		JSONBody(map[string]interface{}{
 			"model":       conv.model.Name,
 			"messages":    conv.messages,

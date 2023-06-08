@@ -24,6 +24,8 @@ type flags struct {
 	} `cmd:"" help:"List supported models"`
 	Get struct {
 		APIKey     string        `help:"OpenAI API key" required:"" env:"OPENAI_API_KEY"`
+		URL        string        `help:"OpenAI API url. Can be Azure Open AI service" default:"https://api.openai.com/v1" env:"OPENAI_API_URL"`
+		APIVersion string        `help:"OpenAI API version" default:"" env:"OPENAI_API_VERSION"`
 		OutputFile string        `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
 		ReadmeFile string        `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
 		Quiet      bool          `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
@@ -107,7 +109,11 @@ func generateCode(cli flags) error { //nolint: funlen, cyclop
 		cli.Get.Model = libaiac.ModelGPT35Turbo
 	}
 
-	client := libaiac.NewClient(cli.Get.APIKey)
+	client := libaiac.NewClient(&libaiac.NewClientOptions{
+		ApiKey:     cli.Get.APIKey,
+		URL:        cli.Get.URL,
+		APIVersion: cli.Get.APIVersion,
+	})
 
 	spin := spinner.New(
 		spinner.CharSets[11],
