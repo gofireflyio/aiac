@@ -1,0 +1,13 @@
+apiVersion: elbv2.k8s.aws/v1beta1
+kind: TargetGroupBinding
+metadata:
+  labels:
+    ingress.k8s.aws/stack: prom-stack-tempo
+  name: k8s-tempo-tempodis-80b93503db
+  namespace: tempo
+spec:
+  serviceRef:
+    name: tempo-distributed-gateway
+    port: 80
+  targetGroupARN: arn:aws:elasticloadbalancing:us-east-1:094724549126:targetgroup/k8s-tempo-tempodis-80b93503db/b708238ac5ea6f75
+  targetType: instance
