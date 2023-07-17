@@ -1,0 +1,139 @@
+# Variables
+---
+variables:
+  region: us-east-1
+  vpc_cidr: "10.0.0.0/16"
+  public_subnet_cidr: "10.0.1.0/24"
+  private_subnet_cidr: "10.0.2.0/24"
+  ami_id: ami-0c55b159cbfafe1f0
+  instance_type: t2.micro
+  key_name: my-key-pair
+  s3_bucket_name: my-s3-bucket
+  ssm_parameter_name: prod-iac-code-indexer-producer-chunks
+
+# Resources
+---
+resources:
+  # VPC
+  myVPC:
+    Type: AWS::EC2::VPC
+    Properties:
+      CidrBlock: "${vpc_cidr}"
+      Tags:
+        - Key: Name
+          Value: myVPC
+
+  # Public Subnet
+  myPublicSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "${public_subnet_cidr}"
+      AvailabilityZone: "${region}a"
+      Tags:
+        - Key: Name
+          Value: myPublicSubnet
+
+  # Private Subnet
+  myPrivateSubnet:
+    Type: AWS::EC2::Subnet
+    Properties:
+      VpcId: !Ref myVPC
+      CidrBlock: "${private_subnet_cidr}"
+      AvailabilityZone: "${region}a"
+      Tags:
+        - Key: Name
+          Value: myPrivateSubnet
+
+  # Internet Gateway
+  myInternetGateway:
+    Type: AWS::EC2::InternetGateway
+    Properties:
+      Tags:
+        - Key: Name
+          Value: myInternetGateway
+
+  # VPC Gateway Attachment
+  myVPCGatewayAttachment:
+    Type: AWS::EC2::VPCGatewayAttachment
+    Properties:
+      VpcId: !Ref myVPC
+      InternetGatewayId: !Ref myInternetGateway
+
+  # Route Table
+  myRouteTable:
+    Type: AWS::EC2::RouteTable
+    Properties:
+      VpcId: !Ref myVPC
+      Tags:
+        - Key: Name
+          Value: myRouteTable
+
+  # Public Route
+  myPublicRoute:
+    Type: AWS::EC2::Route
+    DependsOn: myVPCGatewayAttachment
+    Properties:
+      RouteTableId: !Ref myRouteTable
+      DestinationCidrBlock: "0.0.0.0/0"
+      GatewayId: !Ref myInternetGateway
+
+  # Private Route Table Association
+  myPrivateRouteTableAssociation:
+    Type: AWS::EC2::SubnetRouteTableAssociation
+    Properties:
+      SubnetId: !Ref myPrivateSubnet
+      RouteTableId: !Ref myRouteTable
+
+  # Security Group
+  mySecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: "Allow SSH and HTTP access"
+      VpcId: !Ref myVPC
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 22
+          ToPort: 22
+          CidrIp: "0.0.0.0/0"
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: "0.0.0.0/0"
+      Tags:
+        - Key: Name
+          Value: mySecurityGroup
+
+  # EC2 Instance
+  myEC2Instance:
+    Type: AWS::EC2::Instance
+    Properties:
+      ImageId: "${ami_id}"
+      InstanceType: "${instance_type}"
+      KeyName: "${key_name}"
+      NetworkInterfaces:
+        - AssociatePublicIpAddress: true
+          DeviceIndex: 0
+          GroupSet:
+            - !Ref mySecurityGroup
+          SubnetId: !Ref myPublicSubnet
+      Tags:
+        - Key: Name
+          Value: myEC2Instance
+
+  # S3 Bucket
+  myS3Bucket:
+    Type: AWS::S3::Bucket
+    Properties:
+      BucketName: "${s3_bucket_name}"
+      Tags:
+        - Key: Name
+          Value: myS3Bucket
+
+  # SSM Parameter
+  mySSMParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Name: "${ssm_parameter_name}"
+      Type: String
+      Value: "REDACTED-BY-FIREFLY:6b86b273ff34fce19d6b804eff5a3f5747ada4eaa22f1d49c01e52ddb7875b4b:sha256"
