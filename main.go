@@ -13,26 +13,37 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
-	"github.com/gofireflyio/aiac/v3/libaiac"
+	"github.com/gofireflyio/aiac/v4/libaiac"
+	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v4/libaiac/openai"
+	"github.com/gofireflyio/aiac/v4/libaiac/types"
 	"github.com/manifoldco/promptui"
 	"github.com/rodaine/table"
 )
 
 type flags struct {
+	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock)" enum:"openai,bedrock" default:"openai" short:"b" env:"AIAC_BACKEND"`
 	ListModels struct {
-		Type libaiac.ModelType `arg:"" help:"List models of specific type" optional:""`
+		Type types.ModelType `arg:"" help:"List models of specific type" optional:""`
 	} `cmd:"" help:"List supported models"`
 	Get struct {
-		APIKey     string        `help:"OpenAI API key" required:"" env:"OPENAI_API_KEY"`
-		URL        string        `help:"OpenAI API url. Can be Azure Open AI service" default:"https://api.openai.com/v1" env:"OPENAI_API_URL"`
-		APIVersion string        `help:"OpenAI API version" default:"" env:"OPENAI_API_VERSION"`
-		OutputFile string        `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
-		ReadmeFile string        `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
-		Quiet      bool          `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
-		Full       bool          `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
-		Model      libaiac.Model `help:"Model to use, default to \"gpt-3.5-turbo\""`
-		What       []string      `arg:"" help:"Which IaC template to generate"`
-		Clipboard  bool          `help:"Copy generated code to clipboard (in --quiet mode)"`
+		// OpenAI flags
+		APIKey     string `help:"OpenAI API key" env:"OPENAI_API_KEY"`
+		URL        string `help:"OpenAI API url. Can be Azure Open AI service" default:"https://api.openai.com/v1" env:"OPENAI_API_URL"`
+		APIVersion string `help:"OpenAI API version" default:"" env:"OPENAI_API_VERSION"`
+
+		// Amazon Bedrock flags
+		AWSProfile string `help:"AWS profile" default:"default" env:"AWS_PROFILE"`
+		AWSRegion  string `help:"AWS region" default:"us-east-1" env:"AWS_REGION"`
+
+		// Generic Flags
+		OutputFile string   `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
+		ReadmeFile string   `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
+		Quiet      bool     `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
+		Full       bool     `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
+		Model      string   `help:"Model to use, default to \"gpt-3.5-turbo\""`
+		What       []string `arg:"" help:"Which IaC template to generate"`
+		Clipboard  bool     `help:"Copy generated code to clipboard (in --quiet mode)"`
 	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
 	Version struct{} `cmd:"" help:"Print aiac version and exit"`
 }
@@ -93,7 +104,21 @@ func printModels(cli flags) {
 	tbl := table.New("Name", "Type", "Maximum Tokens")
 	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
 
-	for _, model := range libaiac.SupportedModels {
+	var client types.Backend
+
+	switch cli.Backend {
+	case libaiac.BackendOpenAI:
+		client = &openai.Client{}
+	case libaiac.BackendBedrock:
+		client = &bedrock.Client{}
+	default:
+		fmt.Fprintf(os.Stderr, "Unknown backend %s\n")
+		os.Exit(1)
+	}
+
+	models := client.ListModels()
+
+	for _, model := range models {
 		if cli.ListModels.Type == "" || cli.ListModels.Type == model.Type {
 			tbl.AddRow(model.Name, model.Type, model.MaxTokens)
 		}
@@ -105,15 +130,30 @@ func printModels(cli flags) {
 var errInvalidInput = errors.New("invalid input, please try again")
 
 func generateCode(cli flags) error { //nolint: funlen, cyclop
-	if cli.Get.Model.Name == "" {
-		cli.Get.Model = libaiac.ModelGPT35Turbo
-	}
-
 	client := libaiac.NewClient(&libaiac.NewClientOptions{
+		Backend:    cli.Backend,
 		ApiKey:     cli.Get.APIKey,
 		URL:        cli.Get.URL,
 		APIVersion: cli.Get.APIVersion,
+		AWSProfile: cli.Get.AWSProfile,
+		AWSRegion:  cli.Get.AWSRegion,
 	})
+
+	var model types.Model
+	if cli.Get.Model == "" {
+		model = client.DefaultModel()
+	} else {
+		for _, supported := range client.ListModels() {
+			if supported.Name == cli.Get.Model {
+				model = supported
+				break
+			}
+		}
+
+		if model.Name == "" {
+			return fmt.Errorf("%w %q", types.ErrUnsupportedModel, cli.Get.Model)
+		}
+	}
 
 	spin := spinner.New(
 		spinner.CharSets[11],
@@ -139,12 +179,12 @@ func generateCode(cli flags) error { //nolint: funlen, cyclop
 		)
 	}
 
-	var res libaiac.Response
+	var res types.Response
 	var err error
 
-	var conversation *libaiac.Conversation
-	if cli.Get.Model.Type == libaiac.ModelTypeChat {
-		conversation = client.Chat(cli.Get.Model)
+	var conversation types.Conversation
+	if model.Type == types.ModelTypeChat {
+		conversation = client.Chat(model)
 	}
 
 	ctx := context.TODO()
@@ -156,7 +196,7 @@ ATTEMPTS:
 		if conversation != nil {
 			res, err = conversation.Send(ctx, prompt)
 		} else {
-			res, err = client.Complete(ctx, cli.Get.Model, prompt)
+			res, err = client.Complete(ctx, model, prompt)
 		}
 
 		options := [][2]string{
@@ -279,7 +319,7 @@ ATTEMPTS:
 	return nil
 }
 
-func saveOutput(cli flags, res libaiac.Response) (err error) {
+func saveOutput(cli flags, res types.Response) (err error) {
 	if !cli.Get.Quiet && cli.Get.OutputFile == "" {
 		input := promptui.Prompt{
 			Label: "Enter file path for generated code",
