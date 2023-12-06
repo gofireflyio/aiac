@@ -32,12 +32,15 @@ Generator.
 
 ## Description
 
-`aiac` is a command line tool to generate IaC (Infrastructure as Code) templates, configurations, utilities, queries and more
-via [OpenAI](https://openai.com/)'s API. The CLI allows you to ask the model to generate templates
-for different scenarios (e.g. "get terraform for AWS EC2"). It will make the
-request, and store the resulting code to a file, or simply print it to standard
-output. By default, `aiac` uses the same model used by ChatGPT, but allows using
-different models.
+`aiac` is a command line tool to generate IaC (Infrastructure as Code) templates,
+configurations, utilities, queries and more via [LLM](https://en.wikipedia.org/wiki/Large_language_model) providers such as [OpenAI](https://openai.com/)
+and [Amazon Bedrock](https://aws.amazon.com/bedrock/). The CLI allows you to ask a model to generate templates
+for different scenarios (e.g. "get terraform for AWS EC2"). It composes an
+appropriate request to the selected provider, and stores the resulting code to
+a file, and/or prints it to standard output.
+
+By default, `aiac` uses OpenAI with the same model used by ChatGPT, but different
+models and providers can be used.
 
 ## Use Cases and Example Prompts
 
@@ -79,10 +82,13 @@ different models.
 
 ## Instructions
 
-You will need to provide an OpenAI API key in order for `aiac` to work. Refer to
-[OpenAI's pricing model](https://openai.com/pricing?trk=public_post-text) for
-more information. As of this writing, you get $5 in free credits upon signing up,
-but generally speaking, this is a paid API.
+For **OpenAI**, you will need to provide an OpenAI API key in order for `aiac` to work.
+Refer to [OpenAI's pricing model](https://openai.com/pricing?trk=public_post-text) for more information. As of this writing, you get $5
+in free credits upon signing up, but generally speaking, this is a paid API.
+
+For **Amazon Bedrock**, you will need an AWS account with Bedrock enabled, and
+access to relevant models (currently Amazon Titan and Anthropic Claude are
+supported by `aiac`). Refer to the [Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html) for more information.
 
 ### Installation
 
@@ -96,7 +102,7 @@ Using `docker`:
 
 Using `go install`:
 
-    go install github.com/gofireflyio/aiac/v3@latest
+    go install github.com/gofireflyio/aiac/v4@latest
 
 Alternatively, clone the repository and build from source:
 
@@ -105,9 +111,26 @@ Alternatively, clone the repository and build from source:
 
 ### Usage
 
+For **OpenAI**:
+
 1. Create your OpenAI API key [here](https://platform.openai.com/account/api-keys).
 2. Click “Create new secret key” and copy it.
-3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the `--api-key` command line flag.
+3. Provide the API key via the `OPENAI_API_KEY` environment variable or via the
+   `--api-key` command line flag.
+
+For **Amazon Bedrock**:
+
+1. Sign-in to the AWS management console.
+2. In the Bedrock console, use the "Manage model access" screen to request access
+   to the required model(s) in a specific region, and wait for approval.
+3. If you haven't already, create an access key and secret access key through IAM,
+   and store them to a named profile in ~/.aws/credentials.
+4. Instruct `aiac` to use Bedrock by setting the `AIAC_BACKEND` environment
+   variable to "bedrock", or via the `--backend` (`-b`) command line flag.
+5. Provide the profile name and the region via the `AWS_PROFILE` and `AWS_REGION`
+   environment variables, respectively, or via the `--aws-profile` and `--aws-region`
+   command line flags. These values default to "default" and "us-east-1",
+   respectively.
 
 #### Command Line
 
@@ -153,6 +176,16 @@ To generate code with a different model, provide the `--model` flag:
 
     aiac get terraform for eks --model="text-davinci-003"
 
+To generate code via Amazon Bedrock, provide the `--backend` flag, along with
+the AWS region and profile:
+
+    aiac get terraform for eks \
+        --backend=bedrock \
+        --aws-profile=prod \
+        --aws-region=us-east-1
+
+The default model when using Bedrock is "amazon.titan-text-lite-v1".
+
 #### Via Docker
 
 All the same instructions apply, except you execute a `docker` image:
@@ -173,12 +206,16 @@ import (
     "context"
     "os"
 
-    "github.com/gofireflyio/aiac/v3/libaiac"
+    "github.com/gofireflyio/aiac/v4/libaiac"
 )
 
 func main() {
-    client := libaiac.NewClient(os.Getenv("OPENAI_API_KEY"))
-    ctx    := context.TODO()
+    client := libaiac.NewClient(&libaiac.NewClientOptions{
+        Backend: libaiac.BackendOpenAI,
+        ApiKey: "api-key",
+    })
+
+    ctx := context.TODO()
 
     // use the model-agnostic wrapper
     res, err := client.GenerateCode(
@@ -239,8 +276,8 @@ CMD [ "node", "index.js" ]
 
 ## Troubleshooting
 
-`aiac` is a command line client to OpenAI's API. Most errors that you are likely
-to encounter are coming from this API. Some common errors you may encounter are:
+Most errors that you are likely to encounter are coming from the backend API,
+i.e. OpenAI or Amazon Bedrock. Some common errors you may encounter are:
 
 - "[insufficient_quota] You exceeded your current quota, please check your plan and billing details":
   As described in the [Instructions](#instructions) section, OpenAI is a paid API with a certain

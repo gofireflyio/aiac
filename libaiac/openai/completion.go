@@ -1,9 +1,11 @@
-package libaiac
+package openai
 
 import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/gofireflyio/aiac/v4/libaiac/types"
 )
 
 type completionResponse struct {
@@ -21,9 +23,9 @@ type completionResponse struct {
 // and prompt, and returns the response
 func (client *Client) Complete(
 	ctx context.Context,
-	model Model,
+	model types.Model,
 	prompt string,
-) (res Response, err error) {
+) (res types.Response, err error) {
 	var answer completionResponse
 
 	err = client.NewRequest("POST", "/completions").
@@ -40,13 +42,13 @@ func (client *Client) Complete(
 	}
 
 	if len(answer.Choices) == 0 {
-		return res, ErrNoResults
+		return res, types.ErrNoResults
 	}
 
 	if answer.Choices[0].FinishReason != "stop" {
 		return res, fmt.Errorf(
 			"%w: %s",
-			ErrResultTruncated,
+			types.ErrResultTruncated,
 			answer.Choices[0].FinishReason,
 		)
 	}
@@ -56,7 +58,7 @@ func (client *Client) Complete(
 	res.TokensUsed = answer.Usage.TotalTokens
 
 	var ok bool
-	if res.Code, ok = ExtractCode(res.FullOutput); !ok {
+	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {
 		res.Code = res.FullOutput
 	}
 

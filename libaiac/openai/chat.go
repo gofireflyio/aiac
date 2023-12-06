@@ -1,9 +1,11 @@
-package libaiac
+package openai
 
 import (
 	"context"
 	"fmt"
 	"strings"
+
+	"github.com/gofireflyio/aiac/v4/libaiac/types"
 )
 
 // Conversation is a struct used to converse with an OpenAI chat model. It
@@ -11,20 +13,15 @@ import (
 // using ChatGPT.
 type Conversation struct {
 	client   *Client
-	model    Model
-	messages []Message
-}
-
-type Message struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
+	model    types.Model
+	messages []types.Message
 }
 
 type chatResponse struct {
 	Choices []struct {
-		Message      Message `json:"message"`
-		Index        int64   `json:"index"`
-		FinishReason string  `json:"finish_reason"`
+		Message      types.Message `json:"message"`
+		Index        int64         `json:"index"`
+		FinishReason string        `json:"finish_reason"`
 	} `json:"choices"`
 	Usage struct {
 		TotalTokens int64 `json:"total_tokens"`
@@ -34,8 +31,8 @@ type chatResponse struct {
 // Chat initiates a conversation with an OpenAI chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
 // from previous requests, just like using the ChatGPT website.
-func (client *Client) Chat(model Model) *Conversation {
-	if model.Type != ModelTypeChat {
+func (client *Client) Chat(model types.Model) types.Conversation {
+	if model.Type != types.ModelTypeChat {
 		return nil
 	}
 
@@ -49,8 +46,8 @@ func (client *Client) Chat(model Model) *Conversation {
 // To maintain context, all previous messages (whether from you to the API or
 // vice-versa) are sent as well, allowing you to ask the API to modify the
 // code it already generated.
-func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Message) (
-	res Response,
+func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types.Message) (
+	res types.Response,
 	err error,
 ) {
 	var answer chatResponse
@@ -59,7 +56,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Messa
 		conv.messages = append(conv.messages, msgs...)
 	}
 
-	conv.messages = append(conv.messages, Message{
+	conv.messages = append(conv.messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
@@ -83,13 +80,13 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Messa
 	}
 
 	if len(answer.Choices) == 0 {
-		return res, ErrNoResults
+		return res, types.ErrNoResults
 	}
 
 	if answer.Choices[0].FinishReason != "stop" {
 		return res, fmt.Errorf(
 			"%w: %s",
-			ErrResultTruncated,
+			types.ErrResultTruncated,
 			answer.Choices[0].FinishReason,
 		)
 	}
@@ -101,7 +98,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...Messa
 	res.TokensUsed = answer.Usage.TotalTokens
 
 	var ok bool
-	if res.Code, ok = ExtractCode(res.FullOutput); !ok {
+	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {
 		res.Code = res.FullOutput
 	}
 
