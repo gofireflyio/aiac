@@ -1,12 +1,11 @@
 project_name: aiac
 builds:
-  -
-    main: main.go
+  - main: main.go
     binary: aiac
     ldflags:
       - -s -w
       - "-extldflags '-static'"
-      - -X 'github.com/gofireflyio/aiac/v3/libaiac.Version={{.Version}}'
+      - -X 'github.com/gofireflyio/aiac/v4/libaiac.Version={{.Version}}'
     env:
       - CGO_ENABLED=0
     goos:
@@ -32,8 +31,7 @@ builds:
         goarch: arm64
 
 archives:
-  -
-    format: tar.gz
+  - format: tar.gz
     name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
     replacements:
       amd64: 64bit
@@ -51,8 +49,7 @@ archives:
       - README.md
       - LICENSE
 brews:
-  -
-    tap:
+  - tap:
       owner: gofireflyio
       name: homebrew-aiac
     homepage: "https://github.com/gofireflyio/aiac"
@@ -139,15 +136,15 @@ dockers:
       - "--platform=linux/ppc64le"
 
 docker_manifests:
-  - name_template: 'ghcr.io/gofireflyio/aiac:{{ .Version }}'
+  - name_template: "ghcr.io/gofireflyio/aiac:{{ .Version }}"
     image_templates:
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le'
-  - name_template: 'ghcr.io/gofireflyio/aiac:latest'
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le"
+  - name_template: "ghcr.io/gofireflyio/aiac:latest"
     image_templates:
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x'
-    - 'ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le'
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-amd64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x"
+      - "ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le"
