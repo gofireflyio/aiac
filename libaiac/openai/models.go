@@ -27,14 +27,6 @@ var (
 	// snapshot of the gpt-4-32k model
 	ModelGPT432K0314 = types.Model{"gpt-4-32k-0314", 32768, types.ModelTypeChat}
 
-	// ModelTextDaVinci3 represents the text-davinci-003 language generation
-	// model.
-	ModelTextDaVinci3 = types.Model{"text-davinci-003", 4097, types.ModelTypeCompletion}
-
-	// ModelTextDaVinci2 represents the text-davinci-002 language generation
-	// model.
-	ModelTextDaVinci2 = types.Model{"text-davinci-002", 4097, types.ModelTypeCompletion}
-
 	// SupportedModels is a list of all language models supported by this
 	// backend implementation.
 	SupportedModels = []types.Model{
@@ -44,8 +36,6 @@ var (
 		ModelGPT40314,
 		ModelGPT432K,
 		ModelGPT432K0314,
-		ModelTextDaVinci3,
-		ModelTextDaVinci2,
 	}
 )
 

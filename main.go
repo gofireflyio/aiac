@@ -112,7 +112,7 @@ func printModels(cli flags) {
 	case libaiac.BackendBedrock:
 		client = &bedrock.Client{}
 	default:
-		fmt.Fprintf(os.Stderr, "Unknown backend %s\n")
+		fmt.Fprintf(os.Stderr, "Unknown backend %s\n", cli.Backend)
 		os.Exit(1)
 	}
 
