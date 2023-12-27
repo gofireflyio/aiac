@@ -200,7 +200,8 @@ ATTEMPTS:
 		}
 
 		options := [][2]string{
-			{"r", "retry"},
+			{"r", "retry same prompt"},
+			{"y", "copy to clipboard"},
 			{"q", "quit"},
 		}
 
@@ -227,39 +228,34 @@ ATTEMPTS:
 			if conversation != nil {
 				options = append(
 					[][2]string{
-						{"s", "save"},
-						{"c", "chat"},
+						{"s", "save and exit"},
+						{"w", "save and chat"},
+						{"c", "continue chatting"},
 					},
 					options...,
 				)
 			} else {
 				options = append(
-					[][2]string{{"s", "save"}},
+					[][2]string{
+						{"s", "save and exit"},
+					},
 					options...,
 				)
 			}
-
-			options = append(options, [2]string{"y", "clipboard"})
 		}
 
 	PROMPT:
 		for {
-			var label strings.Builder
-			fmt.Fprintf(&label, "Hit ")
-			for i, opt := range options {
-				fmt.Fprintf(
-					&label,
-					"[%s/%s] to %s",
+			fmt.Println()
+			for _, opt := range options {
+				fmt.Printf(
+					"[%s/%s]: %s\n",
 					strings.ToUpper(opt[0]), opt[0], opt[1],
 				)
-
-				if i < len(options)-1 {
-					fmt.Fprintf(&label, ", ")
-				}
 			}
 
 			input := promptui.Prompt{
-				Label: label.String(),
+				Label: "Choice",
 				Validate: func(s string) error {
 					key := strings.ToLower(s)
 					for _, opt := range options {
@@ -281,7 +277,9 @@ ATTEMPTS:
 				return fmt.Errorf("prompt failed: %w", err)
 			}
 
-			switch strings.ToLower(result) {
+			choice := strings.ToLower(result)
+
+			switch choice {
 			case "r":
 				continue ATTEMPTS
 			case "q":
@@ -294,29 +292,39 @@ ATTEMPTS:
 				continue PROMPT
 			case "c":
 				// continue chatting
-				input := promptui.Prompt{
-					Label: "New message",
-				}
-
-				prompt, err = input.Run()
-				for err != nil {
-					fmt.Fprintf(os.Stderr, "%s: please try again\n", err)
-					prompt, err = input.Run()
-				}
-
+				prompt = newMessage()
 				continue ATTEMPTS
-			case "s":
-				break ATTEMPTS
+			case "s", "w":
+				err = saveOutput(cli, res)
+				if err != nil {
+					return fmt.Errorf("failed saving output: %w", err)
+				}
+
+				if choice == "w" {
+					prompt = newMessage()
+					continue ATTEMPTS
+				} else {
+					break ATTEMPTS
+				}
 			}
 		}
 	}
 
-	err = saveOutput(cli, res)
-	if err != nil {
-		return fmt.Errorf("failed saving output: %w", err)
+	return nil
+}
+
+func newMessage() string {
+	input := promptui.Prompt{
+		Label: "New message",
 	}
 
-	return nil
+	prompt, err := input.Run()
+	for err != nil {
+		fmt.Fprintf(os.Stderr, "%s: please try again\n", err)
+		prompt, err = input.Run()
+	}
+
+	return prompt
 }
 
 func saveOutput(cli flags, res types.Response) (err error) {
@@ -350,7 +358,7 @@ func saveOutput(cli flags, res types.Response) (err error) {
 
 	if !cli.Get.Quiet && cli.Get.ReadmeFile == "" {
 		input := promptui.Prompt{
-			Label: "Enter file path for full output, or leave empty to exit",
+			Label: "Enter file path for full output, or leave empty to ignore",
 		}
 
 		cli.Get.ReadmeFile, err = input.Run()
