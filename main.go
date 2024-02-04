@@ -15,6 +15,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/gofireflyio/aiac/v4/libaiac"
 	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
 	"github.com/gofireflyio/aiac/v4/libaiac/openai"
 	"github.com/gofireflyio/aiac/v4/libaiac/types"
 	"github.com/manifoldco/promptui"
@@ -22,7 +23,7 @@ import (
 )
 
 type flags struct {
-	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock)" enum:"openai,bedrock" default:"openai" short:"b" env:"AIAC_BACKEND"`
+	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock, ollama)" enum:"openai,bedrock,ollama" default:"openai" short:"b" env:"AIAC_BACKEND"` //nolint: lll,tagalign
 	ListModels struct {
 		Type types.ModelType `arg:"" help:"List models of specific type" optional:""`
 	} `cmd:"" help:"List supported models"`
@@ -111,6 +112,8 @@ func printModels(cli flags) {
 		client = &openai.Client{}
 	case libaiac.BackendBedrock:
 		client = &bedrock.Client{}
+	case libaiac.BackendOllama:
+		client = &ollama.Client{}
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown backend %s\n", cli.Backend)
 		os.Exit(1)
