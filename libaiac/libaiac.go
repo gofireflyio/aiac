@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
 	"github.com/gofireflyio/aiac/v4/libaiac/openai"
 	"github.com/gofireflyio/aiac/v4/libaiac/types"
 )
@@ -32,6 +33,9 @@ const (
 
 	// BackendBedrock represents the Amazon Bedrock LLM provider.
 	BackendBedrock BackendName = "bedrock"
+
+	// BackendOllama represents the Ollama LLM provider.
+	BackendOllama BackendName = "ollama"
 )
 
 // Decode is used by the kong library to map CLI-provided values to the Model
@@ -49,6 +53,8 @@ func (b *BackendName) Decode(ctx *kong.DecodeContext) error {
 		*b = BackendOpenAI
 	case string(BackendBedrock):
 		*b = BackendBedrock
+	case string(BackendOllama):
+		*b = BackendOllama
 	default:
 		return fmt.Errorf("%w %s", types.ErrUnsupportedBackend, provided)
 	}
@@ -118,6 +124,8 @@ func NewClient(opts *NewClientOptions) *Client {
 			Credentials: cfg.Credentials,
 			Region:      opts.AWSRegion,
 		})
+	case BackendOllama:
+		backend = ollama.NewClient()
 	default:
 		// default to openai
 		backend = openai.NewClient(&openai.NewClientOptions{
