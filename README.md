@@ -33,8 +33,8 @@ Generator.
 ## Description
 
 `aiac` is a command line tool to generate IaC (Infrastructure as Code) templates,
-configurations, utilities, queries and more via [LLM](https://en.wikipedia.org/wiki/Large_language_model) providers such as [OpenAI](https://openai.com/)
-and [Amazon Bedrock](https://aws.amazon.com/bedrock/). The CLI allows you to ask a model to generate templates
+configurations, utilities, queries and more via [LLM](https://en.wikipedia.org/wiki/Large_language_model) providers such as [OpenAI](https://openai.com/),
+[Amazon Bedrock](https://aws.amazon.com/bedrock/) and [Ollama](https://ollama.ai/). The CLI allows you to ask a model to generate templates
 for different scenarios (e.g. "get terraform for AWS EC2"). It composes an
 appropriate request to the selected provider, and stores the resulting code to
 a file, and/or prints it to standard output.
@@ -90,6 +90,11 @@ For **Amazon Bedrock**, you will need an AWS account with Bedrock enabled, and
 access to relevant models (currently Amazon Titan and Anthropic Claude are
 supported by `aiac`). Refer to the [Bedrock documentation](https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html) for more information.
 
+For **Ollama**, you only need the URL to the local Ollama API server, including
+the /api path prefix. This defaults to http://localhost:11434/api. Ollama does
+not provide an authentication mechanism, but one may be in place in case of a
+proxy server being used. This scenario is not currently supported by `aiac`.
+
 ### Installation
 
 Via `brew`:
@@ -131,6 +136,12 @@ For **Amazon Bedrock**:
    environment variables, respectively, or via the `--aws-profile` and `--aws-region`
    command line flags. These values default to "default" and "us-east-1",
    respectively.
+
+For **Ollama**:
+
+1. Nothing needed except the URL to the API server, if the default one is not
+   used. Provide it via the `--ollama-url` flag or the `OLLAMA_API_URL`
+   environment variable. Don't forget to include the /api path prefix.
 
 #### Command Line
 
@@ -185,6 +196,12 @@ the AWS region and profile:
         --aws-region=us-east-1
 
 The default model when using Bedrock is "amazon.titan-text-lite-v1".
+
+To generate code via Ollama, provide the `--backend` flag:
+
+    aiac get terraform for eks --backend=ollama
+
+The default model when using Ollama is "codellama".
 
 #### Via Docker
 

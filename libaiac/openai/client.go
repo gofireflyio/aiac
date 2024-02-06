@@ -14,7 +14,7 @@ import (
 // OpenAIBackend is the default URI endpoint for the OpenAI API.
 const OpenAIBackend = "https://api.openai.com/v1"
 
-// Client is a structure used to continuously generate IaC code via OpenAPI/ChatGPT
+// Client is a structure used to continuously generate IaC code via OpenAPI
 type Client struct {
 	*requests.HTTPClient
 	apiKey     string
@@ -27,16 +27,15 @@ type NewClientOptions struct {
 	// APIKey is the OpenAI API key to use for requests. This is required.
 	ApiKey string
 
-	// ChatGPTURL is the URL to use for ChatGPT requests. This is optional nd by default to openai backend.
+	// URL is the OpenAI API URL to userequests. Optional, defaults to OpenAIBackend.
 	URL string
 
-	// APIVersion is the version of the OpenAI API to use. This is optional and by default to non specified.
+	// APIVersion is the version of the OpenAI API to use. Optional.
 	APIVersion string
 }
 
 // NewClient creates a new instance of the Client struct, with the provided
-// input options. Neither the OpenAI API nor ChatGPT are yet contacted at this
-// point.
+// input options. The OpenAI API backend is not yet contacted at this point.
 func NewClient(opts *NewClientOptions) *Client {
 	if opts == nil {
 		return nil

@@ -15,6 +15,7 @@ import (
 	"github.com/fatih/color"
 	"github.com/gofireflyio/aiac/v4/libaiac"
 	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
 	"github.com/gofireflyio/aiac/v4/libaiac/openai"
 	"github.com/gofireflyio/aiac/v4/libaiac/types"
 	"github.com/manifoldco/promptui"
@@ -22,7 +23,7 @@ import (
 )
 
 type flags struct {
-	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock)" enum:"openai,bedrock" default:"openai" short:"b" env:"AIAC_BACKEND"`
+	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock, ollama)" enum:"openai,bedrock,ollama" default:"openai" short:"b" env:"AIAC_BACKEND"`
 	ListModels struct {
 		Type types.ModelType `arg:"" help:"List models of specific type" optional:""`
 	} `cmd:"" help:"List supported models"`
@@ -35,6 +36,9 @@ type flags struct {
 		// Amazon Bedrock flags
 		AWSProfile string `help:"AWS profile" default:"default" env:"AWS_PROFILE"`
 		AWSRegion  string `help:"AWS region" default:"us-east-1" env:"AWS_REGION"`
+
+		// Ollama flags
+		OllamaURL string `help:"Ollama API URL, including /api path prefix" default:"http://localhost:11434/api" env:"OLLAMA_API_URL"`
 
 		// Generic Flags
 		OutputFile string   `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
@@ -103,6 +107,8 @@ func printModels(cli flags) {
 		client = &openai.Client{}
 	case libaiac.BackendBedrock:
 		client = &bedrock.Client{}
+	case libaiac.BackendOllama:
+		client = &ollama.Client{}
 	default:
 		fmt.Fprintf(os.Stderr, "Unknown backend %s\n", cli.Backend)
 		os.Exit(1)
@@ -135,6 +141,7 @@ from https://platform.openai.com/account/api-keys.`)
 		APIVersion: cli.Get.APIVersion,
 		AWSProfile: cli.Get.AWSProfile,
 		AWSRegion:  cli.Get.AWSRegion,
+		OllamaURL:  cli.Get.OllamaURL,
 	})
 
 	var model types.Model
