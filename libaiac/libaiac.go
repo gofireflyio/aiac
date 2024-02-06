@@ -8,6 +8,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
 	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
 	"github.com/gofireflyio/aiac/v4/libaiac/openai"
 	"github.com/gofireflyio/aiac/v4/libaiac/types"
 )
@@ -32,6 +33,9 @@ const (
 
 	// BackendBedrock represents the Amazon Bedrock LLM provider.
 	BackendBedrock BackendName = "bedrock"
+
+	// BackendOllama represents the Ollama LLM provider.
+	BackendOllama BackendName = "ollama"
 )
 
 // Decode is used by the kong library to map CLI-provided values to the Model
@@ -49,6 +53,8 @@ func (b *BackendName) Decode(ctx *kong.DecodeContext) error {
 		*b = BackendOpenAI
 	case string(BackendBedrock):
 		*b = BackendBedrock
+	case string(BackendOllama):
+		*b = BackendOllama
 	default:
 		return fmt.Errorf("%w %s", types.ErrUnsupportedBackend, provided)
 	}
@@ -60,7 +66,7 @@ func (b *BackendName) Decode(ctx *kong.DecodeContext) error {
 // constructor.
 type NewClientOptions struct {
 	// Backend is the name of the backend to use. Use the available constants,
-	// e.g. BackendOpenAI or BackendBedrock. Defaults to openai.
+	// e.g. BackendOpenAI, BackendBedrock or BackendOllama. Defaults to openai.
 	Backend BackendName
 
 	// ----------------------
@@ -86,6 +92,14 @@ type NewClientOptions struct {
 
 	// AWSProfile is the name of the AWS profile to use. Defaults to "default".
 	AWSProfile string
+
+	// ---------------------
+	// Ollama configuration
+	// ---------------------
+
+	// OllamaURL is the URL to the Ollama API server, including the /api path
+	// prefix. Defaults to http://localhost:11434/api.
+	OllamaURL string
 }
 
 const (
@@ -117,6 +131,10 @@ func NewClient(opts *NewClientOptions) *Client {
 		backend = bedrock.NewClient(bedrockruntime.Options{
 			Credentials: cfg.Credentials,
 			Region:      opts.AWSRegion,
+		})
+	case BackendOllama:
+		backend = ollama.NewClient(&ollama.NewClientOptions{
+			URL: opts.OllamaURL,
 		})
 	default:
 		// default to openai
