@@ -65,15 +65,7 @@ func main() {
 
 	ctx, err := parser.Parse(os.Args[1:])
 	if err != nil {
-		if err.Error() == "missing flags: --api-key=STRING" {
-			fmt.Fprintln(os.Stderr, `You must provide an OpenAI API key via the --api-key flag, or
-the OPENAI_API_KEY environment variable.
-
-Get your API key from https://platform.openai.com/account/api-keys.`)
-		} else {
-			fmt.Fprintf(os.Stderr, "%v\n", err)
-		}
-
+		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
@@ -130,6 +122,12 @@ func printModels(cli flags) {
 var errInvalidInput = errors.New("invalid input, please try again")
 
 func generateCode(cli flags) error { //nolint: funlen, cyclop
+	if cli.Backend == libaiac.BackendOpenAI && cli.Get.APIKey == "" {
+		return errors.New(`You must provide an OpenAI API key via the --api-key flag, or
+the OPENAI_API_KEY environment variable. Get your API key
+from https://platform.openai.com/account/api-keys.`)
+	}
+
 	client := libaiac.NewClient(&libaiac.NewClientOptions{
 		Backend:    cli.Backend,
 		ApiKey:     cli.Get.APIKey,
