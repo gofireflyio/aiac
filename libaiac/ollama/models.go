@@ -36,7 +36,7 @@ var (
 	ModelCodeBooga = types.Model{"codebooga", 0, types.ModelTypeChat}
 
 	// ModelMistral represents the mistral model
-	ModelMistral = types.Model{"mistral", 0, types.ModelTypeCompletion}
+	ModelMistral = types.Model{"mistral", 0, types.ModelTypeChat}
 
 	// SupportedModels is a list of all language models supported by this
 	// backend implementation.
