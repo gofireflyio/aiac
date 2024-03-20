@@ -201,7 +201,7 @@ To generate code via Ollama, provide the `--backend` flag:
 
     aiac get terraform for eks --backend=ollama
 
-The default model when using Ollama is "codellama".
+The default model when using Ollama is "mistral".
 
 #### Via Docker
 
