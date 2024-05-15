@@ -27,6 +27,18 @@ var (
 	// snapshot of the gpt-4-32k model
 	ModelGPT432K0314 = types.Model{"gpt-4-32k-0314", 32768, types.ModelTypeChat}
 
+	// ModelGPT4o represents the gpt-4o model
+	ModelGPT4o = types.Model{"gpt-4o", 128000, types.ModelTypeChat}
+
+	// ModelGPT4o20240513 represents the gpt-4o-2024-05-13 model
+	ModelGPT4o20240513 = types.Model{"gpt-4o-2024-05-13", 128000, types.ModelTypeChat}
+
+	// ModelGPT4Turbo represents the gpt-4-turbo model
+	ModelGPT4Turbo = types.Model{"gpt-4-turbo", 128000, types.ModelTypeChat}
+
+	// ModelGPT4Turbo20240409 represents the gpt-4-turbo-2024-04-09 model
+	ModelGPT4Turbo20240409 = types.Model{"gpt-4-turbo-2024-04-09", 128000, types.ModelTypeChat}
+
 	// SupportedModels is a list of all language models supported by this
 	// backend implementation.
 	SupportedModels = []types.Model{
@@ -36,6 +48,10 @@ var (
 		ModelGPT40314,
 		ModelGPT432K,
 		ModelGPT432K0314,
+		ModelGPT4Turbo,
+		ModelGPT4Turbo20240409,
+		ModelGPT4o,
+		ModelGPT4o20240513,
 	}
 )
 
