@@ -99,7 +99,8 @@ proxy server being used. This scenario is not currently supported by `aiac`.
 
 Via `brew`:
 
-    brew install gofireflyio/aiac/aiac
+    brew tap gofireflyio/aiac https://github.com/gofireflyio/aiac
+    brew install aiac
 
 Using `docker`:
 

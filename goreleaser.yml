@@ -36,7 +36,7 @@ brews:
   - repository:
       owner: gofireflyio
       name: aiac
-    directory: homebrew
+    directory: HomebrewFormula
     homepage: "https://github.com/gofireflyio/aiac"
     description: "Artificial Intelligence Infrastructure-as-Code Generator"
     license: "Apache-2.0"
