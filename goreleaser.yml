@@ -1,3 +1,4 @@
+version: 2
 project_name: aiac
 builds:
   - main: main.go
@@ -24,36 +25,21 @@ builds:
     ignore:
       - goos: darwin
         goarch: 386
-      # modernc.org/sqlite doesn't support the following pairs
-      - goos: freebsd
-        goarch: arm
-      - goos: freebsd
-        goarch: arm64
 
 archives:
   - format: tar.gz
     name_template: "{{.ProjectName}}_{{.Version}}_{{.Os}}-{{.Arch}}"
-    replacements:
-      amd64: 64bit
-      386: 32bit
-      arm: ARM
-      arm64: ARM64
-      ppc64le: PPC64LE
-      darwin: macOS
-      linux: Linux
-      openbsd: OpenBSD
-      netbsd: NetBSD
-      freebsd: FreeBSD
-      dragonfly: DragonFlyBSD
     files:
       - README.md
       - LICENSE
 brews:
-  - tap:
+  - repository:
       owner: gofireflyio
-      name: homebrew-aiac
+      name: aiac
+    directory: homebrew
     homepage: "https://github.com/gofireflyio/aiac"
     description: "Artificial Intelligence Infrastructure-as-Code Generator"
+    license: "Apache-2.0"
     test: |
       system "#{bin}/aiac", "--help"
 
@@ -74,8 +60,8 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.url=https://www.gofirefly.io/"
-      - "--label=org.opencontainers.image.documentation=https://gofirefly.io/"
+      - "--label=org.opencontainers.image.url=https://www.firefly.ai/"
+      - "--label=org.opencontainers.image.documentation=https://firefly.ai/"
       - "--platform=linux/amd64"
   - image_templates:
       - "ghcr.io/gofireflyio/aiac:{{ .Version }}-arm64"
@@ -93,8 +79,8 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
-      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--label=org.opencontainers.image.url=https://www.firefly.ai/"
+      - "--label=org.opencontainers.image.documentation=https://www.firefly.ai/"
       - "--platform=linux/arm64"
   - image_templates:
       - "ghcr.io/gofireflyio/aiac:{{ .Version }}-s390x"
@@ -112,8 +98,8 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
-      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--label=org.opencontainers.image.url=https://www.firefly.ai/"
+      - "--label=org.opencontainers.image.documentation=https://www.firefly.ai/"
       - "--platform=linux/s390x"
   - image_templates:
       - "ghcr.io/gofireflyio/aiac:{{ .Version }}-ppc64le"
@@ -131,8 +117,8 @@ dockers:
       - "--label=org.opencontainers.image.created={{ .Date }}"
       - "--label=org.opencontainers.image.source=https://github.com/gofireflyio/aiac"
       - "--label=org.opencontainers.image.revision={{ .FullCommit }}"
-      - "--label=org.opencontainers.image.url=https://www.gofirefly.io"
-      - "--label=org.opencontainers.image.documentation=https://www.gofirefly.io/"
+      - "--label=org.opencontainers.image.url=https://www.firefly.ai/"
+      - "--label=org.opencontainers.image.documentation=https://www.firefly.ai/"
       - "--platform=linux/ppc64le"
 
 docker_manifests:
