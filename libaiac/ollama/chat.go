@@ -5,15 +5,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 )
 
-// Conversation is a struct used to converse with an OpenAI chat model. It
-// maintains all messages sent/received in order to maintain context just like
-// using ChatGPT.
+// Conversation is a struct used to converse with an Ollama chat model. It
+// maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	client   *Client
-	model    types.Model
+	backend  *Ollama
+	model    string
 	messages []types.Message
 }
 
@@ -22,17 +21,13 @@ type chatResponse struct {
 	Done    bool          `json:"done"`
 }
 
-// Chat initiates a conversation with an OpenAI chat model. A conversation
+// Chat initiates a conversation with an Ollama chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
-// from previous requests, just like using the ChatGPT website.
-func (client *Client) Chat(model types.Model) types.Conversation {
-	if model.Type != types.ModelTypeChat {
-		return nil
-	}
-
+// from previous requests.
+func (backend *Ollama) Chat(model string) types.Conversation {
 	return &Conversation{
-		client: client,
-		model:  model,
+		backend: backend,
+		model:   model,
 	}
 }
 
@@ -40,24 +35,20 @@ func (client *Client) Chat(model types.Model) types.Conversation {
 // To maintain context, all previous messages (whether from you to the API or
 // vice-versa) are sent as well, allowing you to ask the API to modify the
 // code it already generated.
-func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types.Message) (
+func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	res types.Response,
 	err error,
 ) {
 	var answer chatResponse
-
-	if len(msgs) > 0 {
-		conv.messages = append(conv.messages, msgs...)
-	}
 
 	conv.messages = append(conv.messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
 
-	err = conv.client.NewRequest("POST", "/chat").
+	err = conv.backend.NewRequest("POST", "/chat").
 		JSONBody(map[string]interface{}{
-			"model":    conv.model.Name,
+			"model":    conv.model,
 			"messages": conv.messages,
 			"options": map[string]interface{}{
 				"temperature": 0.2,
@@ -70,13 +61,14 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
 
-	if !answer.Done {
-		return res, fmt.Errorf("%w: unexpected truncated response", types.ErrResultTruncated)
-	}
-
 	conv.messages = append(conv.messages, answer.Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Message.Content)
+	if answer.Done {
+		res.StopReason = "done"
+	} else {
+		res.StopReason = "truncated"
+	}
 
 	var ok bool
 	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {

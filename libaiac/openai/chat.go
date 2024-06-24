@@ -5,15 +5,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 )
 
 // Conversation is a struct used to converse with an OpenAI chat model. It
 // maintains all messages sent/received in order to maintain context just like
 // using ChatGPT.
 type Conversation struct {
-	client   *Client
-	model    types.Model
+	backend  *OpenAI
+	model    string
 	messages []types.Message
 }
 
@@ -31,14 +31,10 @@ type chatResponse struct {
 // Chat initiates a conversation with an OpenAI chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
 // from previous requests, just like using the ChatGPT website.
-func (client *Client) Chat(model types.Model) types.Conversation {
-	if model.Type != types.ModelTypeChat {
-		return nil
-	}
-
+func (backend *OpenAI) Chat(model string) types.Conversation {
 	return &Conversation{
-		client: client,
-		model:  model,
+		backend: backend,
+		model:   model,
 	}
 }
 
@@ -46,15 +42,11 @@ func (client *Client) Chat(model types.Model) types.Conversation {
 // To maintain context, all previous messages (whether from you to the API or
 // vice-versa) are sent as well, allowing you to ask the API to modify the
 // code it already generated.
-func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types.Message) (
+func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	res types.Response,
 	err error,
 ) {
 	var answer chatResponse
-
-	if len(msgs) > 0 {
-		conv.messages = append(conv.messages, msgs...)
-	}
 
 	conv.messages = append(conv.messages, types.Message{
 		Role:    "user",
@@ -62,14 +54,14 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types
 	})
 
 	var apiVersion string
-	if len(conv.client.apiVersion) > 0 {
-		apiVersion = fmt.Sprintf("?api-version=%s", conv.client.apiVersion)
+	if len(conv.backend.apiVersion) > 0 {
+		apiVersion = fmt.Sprintf("?api-version=%s", conv.backend.apiVersion)
 	}
 
-	err = conv.client.NewRequest("POST",
-		fmt.Sprintf("/chat/completions%s", apiVersion)).
+	err = conv.backend.
+		NewRequest("POST", fmt.Sprintf("/chat/completions%s", apiVersion)).
 		JSONBody(map[string]interface{}{
-			"model":       conv.model.Name,
+			"model":       conv.model,
 			"messages":    conv.messages,
 			"temperature": 0.2,
 		}).
@@ -83,19 +75,12 @@ func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types
 		return res, types.ErrNoResults
 	}
 
-	if answer.Choices[0].FinishReason != "stop" {
-		return res, fmt.Errorf(
-			"%w: %s",
-			types.ErrResultTruncated,
-			answer.Choices[0].FinishReason,
-		)
-	}
-
 	conv.messages = append(conv.messages, answer.Choices[0].Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Choices[0].Message.Content)
-	res.APIKeyUsed = conv.client.apiKey
+	res.APIKeyUsed = conv.backend.apiKey
 	res.TokensUsed = answer.Usage.TotalTokens
+	res.StopReason = answer.Choices[0].FinishReason
 
 	var ok bool
 	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {

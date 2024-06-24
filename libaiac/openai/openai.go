@@ -2,28 +2,29 @@ package openai
 
 import (
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
 
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 	"github.com/ido50/requests"
 )
 
-// OpenAIBackend is the default URI endpoint for the OpenAI API.
+// OpenAIBackend is the default URI endpoint for the OpenAI API
 const OpenAIBackend = "https://api.openai.com/v1"
 
-// Client is a structure used to continuously generate IaC code via OpenAPI
-type Client struct {
+// OpenAI is a structure used to continuously generate IaC code via OpenAPI
+type OpenAI struct {
 	*requests.HTTPClient
 	apiKey     string
 	apiVersion string
 }
 
-// NewClientOptions is a struct containing all the parameters accepted by the
-// NewClient constructor.
-type NewClientOptions struct {
+// Options is a struct containing all the parameters accepted by the New
+// constructor.
+type Options struct {
 	// APIKey is the OpenAI API key to use for requests. This is required.
 	ApiKey string
 
@@ -32,17 +33,20 @@ type NewClientOptions struct {
 
 	// APIVersion is the version of the OpenAI API to use. Optional.
 	APIVersion string
+
+	// DefaultModel
+	DefaultModel string
 }
 
-// NewClient creates a new instance of the Client struct, with the provided
-// input options. The OpenAI API backend is not yet contacted at this point.
-func NewClient(opts *NewClientOptions) *Client {
+// New creates a new instance of the OpenAI struct, with the provided input
+// options. The OpenAI API backend is not yet contacted at this point.
+func New(opts *Options) (*OpenAI, error) {
 	if opts == nil {
-		return nil
+		return nil, nil
 	}
 
 	if opts.ApiKey == "" {
-		return nil
+		return nil, errors.New("OpenAI backends require an API key")
 	}
 
 	if opts.URL == "" {
@@ -60,12 +64,12 @@ func NewClient(opts *NewClientOptions) *Client {
 		authHeaderVal = opts.ApiKey
 	}
 
-	cli := &Client{
+	backend := &OpenAI{
 		apiKey:     strings.TrimPrefix(opts.ApiKey, "Bearer "),
 		apiVersion: opts.APIVersion,
 	}
 
-	cli.HTTPClient = requests.NewClient(opts.URL).
+	backend.HTTPClient = requests.NewClient(opts.URL).
 		Accept("application/json").
 		Header(authHeaderKey, authHeaderVal).
 		ErrorHandler(func(
@@ -97,5 +101,5 @@ func NewClient(opts *NewClientOptions) *Client {
 			)
 		})
 
-	return cli
+	return backend, nil
 }

@@ -13,50 +13,26 @@ import (
 	"github.com/atotto/clipboard"
 	"github.com/briandowns/spinner"
 	"github.com/fatih/color"
-	"github.com/gofireflyio/aiac/v4/libaiac"
-	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
-	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
-	"github.com/gofireflyio/aiac/v4/libaiac/openai"
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	"github.com/gofireflyio/aiac/v5/libaiac"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 	"github.com/manifoldco/promptui"
-	"github.com/rodaine/table"
 )
 
 type flags struct {
-	Backend    libaiac.BackendName `help:"Backend to use (openai, bedrock, ollama)" enum:"openai,bedrock,ollama" default:"openai" short:"b" env:"AIAC_BACKEND"`
-	ListModels struct {
-		Type types.ModelType `arg:"" help:"List models of specific type" optional:""`
-	} `cmd:"" help:"List supported models"`
-	Get struct {
-		// OpenAI flags
-		APIKey     string `help:"OpenAI API key" env:"OPENAI_API_KEY"`
-		URL        string `help:"OpenAI API url. Can be Azure Open AI service" default:"https://api.openai.com/v1" env:"OPENAI_API_URL"`
-		APIVersion string `help:"OpenAI API version" default:"" env:"OPENAI_API_VERSION"`
-
-		// Amazon Bedrock flags
-		AWSProfile string `help:"AWS profile" default:"default" env:"AWS_PROFILE"`
-		AWSRegion  string `help:"AWS region" default:"us-east-1" env:"AWS_REGION"`
-
-		// Ollama flags
-		OllamaURL string `help:"Ollama API URL, including /api path prefix" default:"http://localhost:11434/api" env:"OLLAMA_API_URL"`
-
-		// Generic Flags
-		OutputFile string   `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
-		ReadmeFile string   `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
-		Quiet      bool     `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
-		Full       bool     `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
-		Model      string   `help:"Model to use, default to \"gpt-3.5-turbo\""`
-		What       []string `arg:"" help:"Which IaC template to generate"`
-		Clipboard  bool     `help:"Copy generated code to clipboard (in --quiet mode)"`
-	} `cmd:"" help:"Generate IaC code" aliases:"generate"`
-	Version struct{} `cmd:"" help:"Print aiac version and exit"`
+	Config     string   `help:"Configuration file path" type:"path" short:"c"`
+	Backend    string   `help:"Backend to use" short:"b"`
+	OutputFile string   `help:"Output file to push resulting code to" optional:"" type:"path" short:"o"`         //nolint: lll
+	ReadmeFile string   `help:"Readme file to push entire Markdown output to" optional:"" type:"path" short:"r"` //nolint: lll
+	Quiet      bool     `help:"Non-interactive mode, print/save output and exit" default:"false" short:"q"`      //nolint: lll
+	Full       bool     `help:"Print full Markdown output to stdout" default:"false" short:"f"`                  //nolint: lll
+	Model      string   `help:"Model to use" short:"m"`
+	What       []string `arg:"" optional:"" help:"Which IaC template to generate"`
+	Clipboard  bool     `help:"Copy generated code to clipboard (in --quiet mode)"`
+	ListModels bool     `help:"List supported models and exit"`
+	Version    bool     `help:"Print aiac version and exit"`
 }
 
 func main() {
-	if len(os.Args) < 2 { //nolint: gomnd
-		os.Args = append(os.Args, "--help")
-	}
-
 	var cli flags
 	parser := kong.Must(
 		&cli,
@@ -67,98 +43,62 @@ func main() {
 		}),
 	)
 
-	ctx, err := parser.Parse(os.Args[1:])
+	_, err := parser.Parse(os.Args[1:])
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "%v\n", err)
 		os.Exit(1)
 	}
 
-	switch ctx.Command() {
-	case "version":
+	if cli.Version {
 		fmt.Fprintf(os.Stdout, "aiac version %s\n", libaiac.Version)
 		os.Exit(0)
-	case "list-models", "list-models <type>":
-		printModels(cli)
-		os.Exit(0)
-	case "get <what>":
-		err := generateCode(cli)
+	}
+
+	aiac, err := libaiac.New(cli.Config)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Failed loading aiac client: %s\n", err)
+		os.Exit(1)
+	}
+
+	if cli.ListModels {
+		err := printModels(aiac, cli)
 		if err != nil {
-			fmt.Fprintf(os.Stderr, "Error: %s\n", err)
+			fmt.Fprintf(os.Stderr, "Failed listing models: %s\n", err)
 			os.Exit(1)
 		}
+
 		os.Exit(0)
-	default:
-		fmt.Fprintln(os.Stderr, "Unknown command")
+	}
+
+	err = generateCode(aiac, cli)
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "Error: %s\n", err)
 		os.Exit(1)
 	}
+	os.Exit(0)
 }
 
-func printModels(cli flags) {
-	headerFmt := color.New(color.FgGreen, color.Underline).SprintfFunc()
-	columnFmt := color.New(color.FgYellow).SprintfFunc()
+func printModels(aiac *libaiac.Aiac, cli flags) error {
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
 
-	tbl := table.New("Name", "Type", "Maximum Tokens")
-	tbl.WithHeaderFormatter(headerFmt).WithFirstColumnFormatter(columnFmt)
-
-	var client types.Backend
-
-	switch cli.Backend {
-	case libaiac.BackendOpenAI:
-		client = &openai.Client{}
-	case libaiac.BackendBedrock:
-		client = &bedrock.Client{}
-	case libaiac.BackendOllama:
-		client = &ollama.Client{}
-	default:
-		fmt.Fprintf(os.Stderr, "Unknown backend %s\n", cli.Backend)
-		os.Exit(1)
+	models, err := aiac.ListModels(ctx, cli.Backend)
+	if err != nil {
+		return err
 	}
-
-	models := client.ListModels()
 
 	for _, model := range models {
-		if cli.ListModels.Type == "" || cli.ListModels.Type == model.Type {
-			tbl.AddRow(model.Name, model.Type, model.MaxTokens)
-		}
+		fmt.Println(model)
 	}
 
-	tbl.Print()
+	return nil
 }
 
 var errInvalidInput = errors.New("invalid input, please try again")
 
-func generateCode(cli flags) error { //nolint: funlen, cyclop
-	if cli.Backend == libaiac.BackendOpenAI && cli.Get.APIKey == "" {
-		return errors.New(`You must provide an OpenAI API key via the --api-key flag, or
-the OPENAI_API_KEY environment variable. Get your API key
-from https://platform.openai.com/account/api-keys.`)
-	}
-
-	client := libaiac.NewClient(&libaiac.NewClientOptions{
-		Backend:    cli.Backend,
-		ApiKey:     cli.Get.APIKey,
-		URL:        cli.Get.URL,
-		APIVersion: cli.Get.APIVersion,
-		AWSProfile: cli.Get.AWSProfile,
-		AWSRegion:  cli.Get.AWSRegion,
-		OllamaURL:  cli.Get.OllamaURL,
-	})
-
-	var model types.Model
-	if cli.Get.Model == "" {
-		model = client.DefaultModel()
-	} else {
-		for _, supported := range client.ListModels() {
-			if supported.Name == cli.Get.Model {
-				model = supported
-				break
-			}
-		}
-
-		if model.Name == "" {
-			return fmt.Errorf("%w %q", types.ErrUnsupportedModel, cli.Get.Model)
-		}
-	}
+func generateCode(aiac *libaiac.Aiac, cli flags) error { //nolint: funlen, cyclop
+	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	defer cancel()
 
 	spin := spinner.New(
 		spinner.CharSets[11],
@@ -172,37 +112,40 @@ from https://platform.openai.com/account/api-keys.`)
 		}
 	}()
 
+	// If the prompt starts with the word "get" or "generate", remove it. This
+	// is here for backwards compatibility purposes, as previous versions used
+	// these words as command names (that weren't truly part of the prompt), so
+	// people may be used to adding them and we don't want them to actually be
+	// in the prompt.
+	if strings.ToLower(cli.What[0]) == "get" ||
+		strings.ToLower(cli.What[0]) == "generate" {
+		cli.What = cli.What[1:]
+	}
+
 	// NOTE: we are prepending the string "generate sample code for a..."
 	// to the prompt, this is meant to ensure that the language model
 	// actually generates code.
-	prompt := fmt.Sprintf("Generate sample code for a %s", strings.Join(cli.Get.What, " "))
+	prompt := fmt.Sprintf("Generate sample code for a %s", strings.Join(cli.What, " "))
 
-	if cli.Get.ReadmeFile != "" || cli.Get.Full {
+	if cli.ReadmeFile != "" || cli.Full {
 		prompt = fmt.Sprintf(
 			"Generate sample code for a %s. Include explanations.",
-			strings.Join(cli.Get.What, " "),
+			strings.Join(cli.What, " "),
 		)
 	}
 
 	var res types.Response
-	var err error
 
-	var conversation types.Conversation
-	if model.Type == types.ModelTypeChat {
-		conversation = client.Chat(model)
+	chat, err := aiac.Chat(ctx, cli.Backend, cli.Model)
+	if err != nil {
+		return fmt.Errorf("failed starting chat: %w", err)
 	}
-
-	ctx := context.TODO()
 
 ATTEMPTS:
 	for {
 		spin.Start()
 
-		if conversation != nil {
-			res, err = conversation.Send(ctx, prompt)
-		} else {
-			res, err = client.Complete(ctx, model, prompt)
-		}
+		res, err = chat.Send(ctx, prompt)
 
 		options := [][2]string{
 			{"r", "retry same prompt"},
@@ -217,36 +160,27 @@ ATTEMPTS:
 			spin.Stop()
 
 			stdoutOutput := res.Code
-			if cli.Get.Full {
+			if cli.Full {
 				stdoutOutput = res.FullOutput
 			}
 
 			fmt.Fprintln(os.Stdout, stdoutOutput)
 
-			if cli.Get.Quiet {
-				if cli.Get.Clipboard {
+			if cli.Quiet {
+				if cli.Clipboard {
 					clipboard.WriteAll(stdoutOutput)
 				}
 				break ATTEMPTS
 			}
 
-			if conversation != nil {
-				options = append(
-					[][2]string{
-						{"s", "save and exit"},
-						{"w", "save and chat"},
-						{"c", "continue chatting"},
-					},
-					options...,
-				)
-			} else {
-				options = append(
-					[][2]string{
-						{"s", "save and exit"},
-					},
-					options...,
-				)
-			}
+			options = append(
+				[][2]string{
+					{"s", "save and exit"},
+					{"w", "save and chat"},
+					{"c", "continue chatting"},
+				},
+				options...,
+			)
 		}
 
 	PROMPT:
@@ -333,12 +267,12 @@ func newMessage() string {
 }
 
 func saveOutput(cli flags, res types.Response) (err error) {
-	if !cli.Get.Quiet && cli.Get.OutputFile == "" {
+	if !cli.Quiet && cli.OutputFile == "" {
 		input := promptui.Prompt{
 			Label: "Enter file path for generated code",
 		}
 
-		cli.Get.OutputFile, err = input.Run()
+		cli.OutputFile, err = input.Run()
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
@@ -346,12 +280,12 @@ func saveOutput(cli flags, res types.Response) (err error) {
 
 	var codeSaved, fullSaved bool
 
-	if cli.Get.OutputFile != "" {
-		f, err := os.Create(cli.Get.OutputFile)
+	if cli.OutputFile != "" {
+		f, err := os.Create(cli.OutputFile)
 		if err != nil {
 			return fmt.Errorf(
 				"failed creating output file %s: %w",
-				cli.Get.OutputFile, err,
+				cli.OutputFile, err,
 			)
 		}
 
@@ -361,23 +295,23 @@ func saveOutput(cli flags, res types.Response) (err error) {
 		codeSaved = true
 	}
 
-	if !cli.Get.Quiet && cli.Get.ReadmeFile == "" {
+	if !cli.Quiet && cli.ReadmeFile == "" {
 		input := promptui.Prompt{
 			Label: "Enter file path for full output, or leave empty to ignore",
 		}
 
-		cli.Get.ReadmeFile, err = input.Run()
+		cli.ReadmeFile, err = input.Run()
 		if err != nil {
 			return fmt.Errorf("prompt failed: %w", err)
 		}
 	}
 
-	if cli.Get.ReadmeFile != "" {
-		f, err := os.Create(cli.Get.ReadmeFile)
+	if cli.ReadmeFile != "" {
+		f, err := os.Create(cli.ReadmeFile)
 		if err != nil {
 			return fmt.Errorf(
 				"failed creating readme file %s: %w",
-				cli.Get.ReadmeFile, err,
+				cli.ReadmeFile, err,
 			)
 		}
 
@@ -388,10 +322,10 @@ func saveOutput(cli flags, res types.Response) (err error) {
 	}
 
 	if codeSaved {
-		fmt.Fprintf(os.Stderr, "Code saved successfully to %s\n", cli.Get.OutputFile)
+		fmt.Fprintf(os.Stderr, "Code saved successfully to %s\n", cli.OutputFile)
 	}
 	if fullSaved {
-		fmt.Fprintf(os.Stderr, "Full output saved successfully to %s\n", cli.Get.ReadmeFile)
+		fmt.Fprintf(os.Stderr, "Full output saved successfully to %s\n", cli.ReadmeFile)
 	}
 
 	return nil

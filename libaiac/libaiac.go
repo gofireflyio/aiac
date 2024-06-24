@@ -4,192 +4,148 @@ import (
 	"context"
 	"fmt"
 
-	"github.com/alecthomas/kong"
 	"github.com/aws/aws-sdk-go-v2/config"
-	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
-	"github.com/gofireflyio/aiac/v4/libaiac/bedrock"
-	"github.com/gofireflyio/aiac/v4/libaiac/ollama"
-	"github.com/gofireflyio/aiac/v4/libaiac/openai"
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	"github.com/gofireflyio/aiac/v5/libaiac/bedrock"
+	"github.com/gofireflyio/aiac/v5/libaiac/ollama"
+	"github.com/gofireflyio/aiac/v5/libaiac/openai"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 )
 
 // Version contains aiac's version string
 var Version = "development"
 
-// Client provides the main interface for using libaiac. It exposes all the
-// capabilities of the chosen backend.
-type Client struct {
-	// Backend is the backend implementation in charge of communicating with
-	// the relevant APIs.
-	Backend types.Backend
+// Aiac provides the main interface for using libaiac.
+type Aiac struct {
+	// Conf holds the configuration for aiac.
+	Conf Config
+
+	// Backends is a map from backend names to backend implementations.
+	Backends map[string]types.Backend
 }
 
-// BackendName is a const type used for identifying backends, a.k.a LLM providers.
-type BackendName string
+// New constructs a new Aiac object with the path to a configuration file. If
+// a configuration file is not provided, the default path will be checked based
+// on the XDG specification. On Unix-like operating systems, this will be
+// ~/.config/aiac/aiac.toml.
+func New(configPath ...string) (*Aiac, error) {
+	path := ""
+	if len(configPath) > 0 {
+		path = configPath[0]
+	}
 
-const (
-	// BackendOpenAI represents the OpenAI LLM provider.
-	BackendOpenAI BackendName = "openai"
-
-	// BackendBedrock represents the Amazon Bedrock LLM provider.
-	BackendBedrock BackendName = "bedrock"
-
-	// BackendOllama represents the Ollama LLM provider.
-	BackendOllama BackendName = "ollama"
-)
-
-// Decode is used by the kong library to map CLI-provided values to the Model
-// type
-func (b *BackendName) Decode(ctx *kong.DecodeContext) error {
-	var provided string
-
-	err := ctx.Scan.PopValueInto("string", &provided)
+	conf, err := LoadConfig(path)
 	if err != nil {
-		return fmt.Errorf("failed getting model value: %w", err)
+		return nil, fmt.Errorf("failed loading configuration: %w", err)
 	}
 
-	switch provided {
-	case string(BackendOpenAI):
-		*b = BackendOpenAI
-	case string(BackendBedrock):
-		*b = BackendBedrock
-	case string(BackendOllama):
-		*b = BackendOllama
-	default:
-		return fmt.Errorf("%w %s", types.ErrUnsupportedBackend, provided)
+	return &Aiac{Conf: conf}, nil
+}
+
+// NewFromConf is the same as New, but receives a populated configuration object
+// rather than a file path.
+func NewFromConf(conf Config) *Aiac {
+	return &Aiac{Conf: conf}
+}
+
+// ListModels returns a list of all the models supported by the selected
+// backend, identified by its name. If backendName is an empty string, the
+// default backend defined in the configuration file will be used, if any.
+func (aiac *Aiac) ListModels(ctx context.Context, backendName string) (
+	models []string,
+	err error,
+) {
+	backend, _, err := aiac.loadBackend(ctx, backendName)
+	if err != nil {
+		return models, fmt.Errorf("failed loading backend: %w", err)
 	}
 
-	return nil
+	return backend.ListModels(ctx)
 }
 
-// NewClientOptions contains all the parameters accepted by the NewClient
-// constructor.
-type NewClientOptions struct {
-	// Backend is the name of the backend to use. Use the available constants,
-	// e.g. BackendOpenAI, BackendBedrock or BackendOllama. Defaults to openai.
-	Backend BackendName
+// Chat initiates a chat conversation with the provided chat model of the
+// selected backend. Returns a Conversation object with which messages can be
+// sent and received. If backendName is an empty string, the default backend
+// defined in the configuration will be used, if any. If model is an empty
+// string, the default model defined in the backend configuration will be used,
+// if any.
+func (aiac *Aiac) Chat(ctx context.Context, backendName, model string) (
+	chat types.Conversation,
+	err error,
+) {
+	backend, defaultModel, err := aiac.loadBackend(ctx, backendName)
+	if err != nil {
+		return chat, fmt.Errorf("failed loading backend: %w", err)
+	}
 
-	// ----------------------
-	// OpenAI related options
-	// ----------------------
-
-	// ApiKey is the OpenAI API key. Required if using OpenAI.
-	ApiKey string
-
-	// URL can be used to change the OpenAPI endpoint, for example in order to
-	// use Azure OpenAI services. Defaults to OpenAI's standard API endpoint.
-	URL string
-
-	// APIVersion is the version of the OpenAI API to use. Unset by default.
-	APIVersion string
-
-	// ---------------------
-	// Bedrock configuration
-	// ---------------------
-
-	// AWSRegion is the name of the region to use. Defaults to "us-east-1".
-	AWSRegion string
-
-	// AWSProfile is the name of the AWS profile to use. Defaults to "default".
-	AWSProfile string
-
-	// ---------------------
-	// Ollama configuration
-	// ---------------------
-
-	// OllamaURL is the URL to the Ollama API server, including the /api path
-	// prefix. Defaults to http://localhost:11434/api.
-	OllamaURL string
-}
-
-const (
-	DefaultAWSRegion  = "us-east-1"
-	DefaultAWSProfile = "default"
-)
-
-// NewClient constructs a new Client object.
-func NewClient(opts *NewClientOptions) *Client {
-	var backend types.Backend
-
-	switch opts.Backend {
-	case BackendBedrock:
-		if opts.AWSProfile == "" {
-			opts.AWSProfile = DefaultAWSProfile
+	if model == "" {
+		if defaultModel == "" {
+			return nil, types.ErrNoDefaultModel
 		}
-		if opts.AWSRegion == "" {
-			opts.AWSRegion = DefaultAWSRegion
+		model = defaultModel
+	}
+
+	return backend.Chat(model), nil
+}
+
+func (aiac *Aiac) loadBackend(ctx context.Context, name string) (
+	backend types.Backend,
+	defaultModel string,
+	err error,
+) {
+	if name == "" {
+		if aiac.Conf.DefaultBackend == "" {
+			return nil, defaultModel, types.ErrNoDefaultBackend
+		}
+		name = aiac.Conf.DefaultBackend
+	}
+
+	// Check if we've already loaded it before
+	if backend, ok := aiac.Backends[name]; ok {
+		return backend, defaultModel, nil
+	}
+
+	// We haven't, check if it's in the configuration
+	backendConf, ok := aiac.Conf.Backends[name]
+	if !ok {
+		return backend, defaultModel, types.ErrNoSuchBackend
+	}
+
+	switch backendConf.Type {
+	case BackendBedrock:
+		if backendConf.AWSProfile == "" {
+			backendConf.AWSProfile = bedrock.DefaultAWSProfile
+		}
+
+		if backendConf.AWSRegion == "" {
+			backendConf.AWSRegion = bedrock.DefaultAWSRegion
 		}
 
 		cfg, err := config.LoadDefaultConfig(
-			context.TODO(),
-			config.WithSharedConfigProfile(opts.AWSProfile),
+			ctx,
+			config.WithSharedConfigProfile(backendConf.AWSProfile),
 		)
 		if err != nil {
-			return nil
+			return nil, defaultModel, err
 		}
 
-		backend = bedrock.NewClient(bedrockruntime.Options{
-			Credentials: cfg.Credentials,
-			Region:      opts.AWSRegion,
-		})
+		cfg.Region = backendConf.AWSRegion
+
+		backend = bedrock.New(cfg)
 	case BackendOllama:
-		backend = ollama.NewClient(&ollama.NewClientOptions{
-			URL: opts.OllamaURL,
+		backend = ollama.New(&ollama.Options{
+			URL: backendConf.URL,
 		})
 	default:
 		// default to openai
-		backend = openai.NewClient(&openai.NewClientOptions{
-			ApiKey:     opts.ApiKey,
-			URL:        opts.URL,
-			APIVersion: opts.APIVersion,
+		backend, err = openai.New(&openai.Options{
+			ApiKey:     backendConf.APIKey,
+			URL:        backendConf.URL,
+			APIVersion: backendConf.APIVersion,
 		})
+		if err != nil {
+			return nil, defaultModel, err
+		}
 	}
 
-	return &Client{
-		Backend: backend,
-	}
-}
-
-// ListModels returns a list of all the models supported by the chosen backend
-// implementation.
-func (client *Client) ListModels() []types.Model {
-	return client.Backend.ListModels()
-}
-
-// DefaultModel returns the default model used by the chosen backend implementation.
-func (client *Client) DefaultModel() types.Model {
-	return client.Backend.DefaultModel()
-}
-
-// Complete issues a request to a code completion model in the backend. with
-// the provided string prompt.
-func (client *Client) Complete(
-	ctx context.Context,
-	model types.Model,
-	prompt string,
-) (types.Response, error) {
-	return client.Backend.Complete(ctx, model, prompt)
-}
-
-// Chat initiates a chat conversation with the provided chat model. Returns a
-// Conversation object with which messages can be sent and received.
-func (client *Client) Chat(model types.Model) types.Conversation {
-	return client.Backend.Chat(model)
-}
-
-// GenerateCode sends the provided prompt to the backend and returns a
-// Response object. It is a convenience wrapper around client.Complete (for
-// text completion models) and client.Chat.Send (for chat models).
-func (client *Client) GenerateCode(
-	ctx context.Context,
-	model types.Model,
-	prompt string,
-	msgs ...types.Message,
-) (res types.Response, err error) {
-	if model.Type == types.ModelTypeChat {
-		chat := client.Chat(model)
-		return chat.Send(ctx, prompt, msgs...)
-	}
-
-	return client.Complete(ctx, model, prompt)
+	return backend, backendConf.DefaultModel, nil
 }

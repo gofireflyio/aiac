@@ -3,32 +3,28 @@ package bedrock
 import (
 	"context"
 	"fmt"
-	"strings"
 
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/service/bedrockruntime"
-	"github.com/gofireflyio/aiac/v4/libaiac/types"
+	bedrocktypes "github.com/aws/aws-sdk-go-v2/service/bedrockruntime/types"
+	"github.com/gofireflyio/aiac/v5/libaiac/types"
 )
 
 // Conversation is a struct used to converse with a Bedrock chat model. It
 // maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	client   *Client
-	model    types.Model
-	messages []types.Message
+	backend  *Bedrock
+	model    string
+	messages []bedrocktypes.Message
 }
 
 // Chat initiates a conversation with a Bedrock chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
 // from previous requests.
-func (client *Client) Chat(model types.Model) types.Conversation {
-	if model.Type != types.ModelTypeChat {
-		return nil
-	}
-
+func (backend *Bedrock) Chat(model string) types.Conversation {
 	return &Conversation{
-		client: client,
-		model:  model,
+		backend: backend,
+		model:   model,
 	}
 }
 
@@ -36,65 +32,52 @@ func (client *Client) Chat(model types.Model) types.Conversation {
 // To maintain context, all previous messages (whether from you to the API or
 // vice-versa) are sent as well, allowing you to ask the API to modify the
 // code it already generated.
-func (conv *Conversation) Send(ctx context.Context, prompt string, msgs ...types.Message) (
+func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	res types.Response,
 	err error,
 ) {
-	if len(msgs) > 0 {
-		conv.messages = append(conv.messages, msgs...)
-	}
-
-	conv.messages = append(conv.messages, types.Message{
-		Role:    "user",
-		Content: prompt,
+	conv.messages = append(conv.messages, bedrocktypes.Message{
+		Role: bedrocktypes.ConversationRoleUser,
+		Content: []bedrocktypes.ContentBlock{
+			&bedrocktypes.ContentBlockMemberText{Value: prompt},
+		},
 	})
 
-	var inputText strings.Builder
-	for _, msg := range conv.messages {
-		switch msg.Role {
-		case "user":
-			fmt.Fprint(&inputText, "\n\nHuman: ")
-		default:
-			fmt.Fprint(&inputText, "\n\nAssistant: ")
-		}
-
-		fmt.Fprint(&inputText, msg.Content)
-	}
-
-	fmt.Fprintf(&inputText, "\n\nAssistant:")
-
-	body, err := conv.client.generateInputJSON(conv.model, inputText.String())
-	if err != nil {
-		return res, fmt.Errorf("failed generating input JSON: %w", err)
-	}
-
-	output, err := conv.client.backend.InvokeModel(
-		ctx,
-		&bedrockruntime.InvokeModelInput{
-			Body:        body,
-			ModelId:     aws.String(conv.model.Name),
-			Accept:      aws.String("application/json"),
-			ContentType: aws.String("application/json"),
+	input := bedrockruntime.ConverseInput{
+		ModelId:  aws.String(conv.model),
+		Messages: conv.messages,
+		InferenceConfig: &bedrocktypes.InferenceConfiguration{
+			Temperature: aws.Float32(0.2),
 		},
-	)
+	}
+
+	output, err := conv.backend.runtime.Converse(ctx, &input)
 	if err != nil {
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
 
-	res.FullOutput, res.TokensUsed, err = conv.client.parseOutputJSON(
-		conv.model,
-		output.Body,
-	)
-	if err != nil {
-		return res, err
+	outputMsgMember, ok := output.Output.(*bedrocktypes.ConverseOutputMemberMessage)
+	if !ok {
+		return res, fmt.Errorf("Bedrock returned an unexpected response")
 	}
 
-	conv.messages = append(conv.messages, types.Message{
-		Role:    "assistant",
-		Content: res.FullOutput,
-	})
+	if len(outputMsgMember.Value.Content) == 0 {
+		return res, fmt.Errorf("Bedrock didn't return any message")
+	}
 
-	var ok bool
+	outputMsg := outputMsgMember.Value
+
+	outputTxt, ok := outputMsg.Content[0].(*bedrocktypes.ContentBlockMemberText)
+	if !ok {
+		return res, fmt.Errorf("Bedrock return an unexpected response")
+	}
+
+	res.FullOutput = outputTxt.Value
+	res.TokensUsed = int64(*output.Usage.TotalTokens)
+	res.StopReason = string(output.StopReason)
+
+	conv.messages = append(conv.messages, outputMsg)
+
 	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {
 		res.Code = res.FullOutput
 	}

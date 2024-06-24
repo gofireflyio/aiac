@@ -33,6 +33,9 @@ type Response struct {
 	// TokensUsed is the number of tokens utilized by the request. This is
 	// the "usage.total_tokens" value returned from the API.
 	TokensUsed int64
+
+	// StopReason
+	StopReason string
 }
 
 var codeRegex = regexp.MustCompile("(?ms)^```(?:[^\n]*)\n(.*?)\n```$")
