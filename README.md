@@ -55,39 +55,39 @@ environments using a simple configuration file.
 
 ### Generate IaC
 
-- `aiac get terraform for a highly available eks`
-- `aiac get pulumi golang for an s3 with sns notification`
-- `aiac get cloudformation for a neptundb`
+- `aiac terraform for a highly available eks`
+- `aiac pulumi golang for an s3 with sns notification`
+- `aiac cloudformation for a neptundb`
 
 ### Generate Configuration Files
 
-- `aiac get dockerfile for a secured nginx`
-- `aiac get k8s manifest for a mongodb deployment`
+- `aiac dockerfile for a secured nginx`
+- `aiac k8s manifest for a mongodb deployment`
 
 ### Generate CI/CD Pipelines
 
-- `aiac get jenkins pipeline for building nodejs`
-- `aiac get github action that plans and applies terraform and sends a slack notification`
+- `aiac jenkins pipeline for building nodejs`
+- `aiac github action that plans and applies terraform and sends a slack notification`
 
 ### Generate Policy as Code
 
-- `aiac get opa policy that enforces readiness probe at k8s deployments`
+- `aiac opa policy that enforces readiness probe at k8s deployments`
 
 ### Generate Utilities
 
-- `aiac get python code that scans all open ports in my network`
-- `aiac get bash script that kills all active terminal sessions`
+- `aiac python code that scans all open ports in my network`
+- `aiac bash script that kills all active terminal sessions`
 
 ### Command Line Builder
 
-- `aiac get kubectl that gets ExternalIPs of all nodes`
-- `aiac get awscli that lists instances with public IP address and Name`
+- `aiac kubectl that gets ExternalIPs of all nodes`
+- `aiac awscli that lists instances with public IP address and Name`
 
 ### Query Builder
 
-- `aiac get mongo query that aggregates all documents by created date`
-- `aiac get elastic query that applies a condition on a value greater than some value in aggregation`
-- `aiac get sql query that counts the appearances of each row in one table in another table based on an id column`
+- `aiac mongo query that aggregates all documents by created date`
+- `aiac elastic query that applies a condition on a value greater than some value in aggregation`
+- `aiac sql query that counts the appearances of each row in one table in another table based on an id column`
 
 ## Instructions
 
@@ -145,7 +145,7 @@ environments.
 Here's an example configuration file:
 
 ```toml
-default_backend = "openai"   # Default backend when one is not selected
+default_backend = "official_openai"   # Default backend when one is not selected
 
 [backends.official_openai]
 type = "openai"
@@ -187,7 +187,7 @@ line, or as a Go library.
 Before starting to generate code, you can list all models available in a
 backend:
 
-    aiac -b aws_prof --list-models
+    aiac -b aws_prod --list-models
 
 This will return a list of all available models. Note that depending on the LLM
 provider, this may list models that aren't accessible or enabled for the
@@ -205,7 +205,7 @@ This will use the default backend in the configuration file and the default
 model for that backend, assuming they are indeed defined. To use a specific
 backend, provide the `--backend` or `-b` flag:
 
-    aiac -b aws_prof terraform for AWS EC2
+    aiac -b aws_prod terraform for AWS EC2
 
 To use a specific model, provide the `--model` or `-m` flag:
 
