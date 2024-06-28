@@ -128,6 +128,9 @@ Alternatively, clone the repository and build from source:
     git clone https://github.com/gofireflyio/aiac.git
     go build
 
+`aiac` is also available in the Arch Linux user repository (AUR) as [aiac](https://aur.archlinux.org/packages/aiac) (which
+compiles from source) and [aiac-bin](https://aur.archlinux.org/packages/aiac-bin) (which downloads a compiled executable).
+
 ### Configuration
 
 `aiac` is configured via a TOML configuration file. Unless a specific path is
