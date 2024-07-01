@@ -12,9 +12,10 @@ import (
 // maintains all messages sent/received in order to maintain context just like
 // using ChatGPT.
 type Conversation struct {
-	backend  *OpenAI
-	model    string
-	messages []types.Message
+	backend      *OpenAI
+	model        string
+	messages     []types.Message
+	extraHeaders map[string]string
 }
 
 type chatResponse struct {
@@ -67,15 +68,20 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		apiVersion = fmt.Sprintf("?api-version=%s", conv.backend.apiVersion)
 	}
 
-	err = conv.backend.
+	req := conv.backend.
 		NewRequest("POST", fmt.Sprintf("/chat/completions%s", apiVersion)).
 		JSONBody(map[string]interface{}{
 			"model":       conv.model,
 			"messages":    conv.messages,
 			"temperature": 0.2,
 		}).
-		Into(&answer).
-		RunContext(ctx)
+		Into(&answer)
+
+	for key, val := range conv.extraHeaders {
+		req.Header(key, val)
+	}
+
+	err = req.RunContext(ctx)
 	if err != nil {
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
@@ -103,4 +109,15 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 // and the assistant up to this point.
 func (conv *Conversation) Messages() []types.Message {
 	return conv.messages
+}
+
+// AddHeader adds an extra HTTP header that will be added to every HTTP
+// request issued as part of this conversation. Any headers added will be in
+// addition to any extra headers defined for the backend itself, and will
+// take precedence over them.
+func (conv *Conversation) AddHeader(key, val string) {
+	if conv.extraHeaders == nil {
+		conv.extraHeaders = make(map[string]string)
+	}
+	conv.extraHeaders[key] = val
 }

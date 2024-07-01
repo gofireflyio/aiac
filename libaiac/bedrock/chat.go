@@ -120,3 +120,6 @@ func (conv *Conversation) Messages() []types.Message {
 	}
 	return msgs
 }
+
+// AddHeader is a noop for the bedrock implementation
+func (conv *Conversation) AddHeader(_ string, _ string) {}

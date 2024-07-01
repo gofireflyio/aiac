@@ -24,6 +24,13 @@ type Conversation interface {
 	Send(context.Context, string) (Response, error)
 
 	// Messages returns all the messages that have been exchanged between the
-	// user and the assistant up to this point
+	// user and the assistant up to this point.
 	Messages() []Message
+
+	// AddHeader adds an extra HTTP header that will be added to every HTTP
+	// request issued as part of this conversation. Any headers added will be in
+	// addition to any extra headers defined for the backend itself, and will
+	// take precedence over them. Not all providers may support this
+	// (specifically, bedrock doesn't).
+	AddHeader(string, string)
 }

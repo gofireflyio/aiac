@@ -11,9 +11,10 @@ import (
 // Conversation is a struct used to converse with an Ollama chat model. It
 // maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	backend  *Ollama
-	model    string
-	messages []types.Message
+	backend      *Ollama
+	model        string
+	messages     []types.Message
+	extraHeaders map[string]string
 }
 
 type chatResponse struct {
@@ -55,7 +56,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		Content: prompt,
 	})
 
-	err = conv.backend.NewRequest("POST", "/chat").
+	req := conv.backend.NewRequest("POST", "/chat").
 		JSONBody(map[string]interface{}{
 			"model":    conv.model,
 			"messages": conv.messages,
@@ -64,8 +65,13 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 			},
 			"stream": false,
 		}).
-		Into(&answer).
-		RunContext(ctx)
+		Into(&answer)
+
+	for key, val := range conv.extraHeaders {
+		req.Header(key, val)
+	}
+
+	err = req.RunContext(ctx)
 	if err != nil {
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
@@ -91,4 +97,15 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 // and the assistant up to this point.
 func (conv *Conversation) Messages() []types.Message {
 	return conv.messages
+}
+
+// AddHeader adds an extra HTTP header that will be added to every HTTP
+// request issued as part of this conversation. Any headers added will be in
+// addition to any extra headers defined for the backend itself, and will
+// take precedence over them.
+func (conv *Conversation) AddHeader(key, val string) {
+	if conv.extraHeaders == nil {
+		conv.extraHeaders = make(map[string]string)
+	}
+	conv.extraHeaders[key] = val
 }
