@@ -11,12 +11,9 @@ import (
 // Conversation is a struct used to converse with an Ollama chat model. It
 // maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	// Messages is the list of all messages exchanged between the user and the
-	// assistant.
-	Messages []types.Message
-
-	backend *Ollama
-	model   string
+	backend  *Ollama
+	model    string
+	messages []types.Message
 }
 
 type chatResponse struct {
@@ -31,16 +28,16 @@ type chatResponse struct {
 // in the past. This practically allows "loading" previous conversations and
 // continuing them.
 func (backend *Ollama) Chat(model string, msgs ...types.Message) types.Conversation {
-	chat := &Conversation{
+	conv := &Conversation{
 		backend: backend,
 		model:   model,
 	}
 
 	if len(msgs) > 0 {
-		chat.Messages = msgs
+		conv.messages = msgs
 	}
 
-	return chat
+	return conv
 }
 
 // Send sends the provided message to the API and returns a Response object.
@@ -53,7 +50,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 ) {
 	var answer chatResponse
 
-	conv.Messages = append(conv.Messages, types.Message{
+	conv.messages = append(conv.messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
@@ -61,7 +58,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	err = conv.backend.NewRequest("POST", "/chat").
 		JSONBody(map[string]interface{}{
 			"model":    conv.model,
-			"messages": conv.Messages,
+			"messages": conv.messages,
 			"options": map[string]interface{}{
 				"temperature": 0.2,
 			},
@@ -73,7 +70,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
 
-	conv.Messages = append(conv.Messages, answer.Message)
+	conv.messages = append(conv.messages, answer.Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Message.Content)
 	if answer.Done {
@@ -88,4 +85,10 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	}
 
 	return res, nil
+}
+
+// Messages returns all the messages that have been exchanged between the user
+// and the assistant up to this point.
+func (conv *Conversation) Messages() []types.Message {
+	return conv.messages
 }

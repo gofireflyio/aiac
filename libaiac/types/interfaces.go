@@ -1,6 +1,8 @@
 package types
 
-import "context"
+import (
+	"context"
+)
 
 // Backend is an interface that must be implemented in order to support an LLM
 // provider.
@@ -20,4 +22,8 @@ type Backend interface {
 type Conversation interface {
 	// Send sends a message to the model and returns the response.
 	Send(context.Context, string) (Response, error)
+
+	// Messages returns all the messages that have been exchanged between the
+	// user and the assistant up to this point
+	Messages() []Message
 }

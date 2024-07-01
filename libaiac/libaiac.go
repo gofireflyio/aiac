@@ -67,11 +67,15 @@ func (aiac *Aiac) ListModels(ctx context.Context, backendName string) (
 // sent and received. If backendName is an empty string, the default backend
 // defined in the configuration will be used, if any. If model is an empty
 // string, the default model defined in the backend configuration will be used,
-// if any.
-func (aiac *Aiac) Chat(ctx context.Context, backendName, model string) (
-	chat types.Conversation,
-	err error,
-) {
+// if any. Users can also supply zero or more "previous messages" that may have
+// been exchanged in the past. This practically allows "loading" previous
+// conversations and continuing them.
+func (aiac *Aiac) Chat(
+	ctx context.Context,
+	backendName string,
+	model string,
+	msgs ...types.Message,
+) (chat types.Conversation, err error) {
 	backend, defaultModel, err := aiac.loadBackend(ctx, backendName)
 	if err != nil {
 		return chat, fmt.Errorf("failed loading backend: %w", err)
@@ -84,7 +88,7 @@ func (aiac *Aiac) Chat(ctx context.Context, backendName, model string) (
 		model = defaultModel
 	}
 
-	return backend.Chat(model), nil
+	return backend.Chat(model, msgs...), nil
 }
 
 func (aiac *Aiac) loadBackend(ctx context.Context, name string) (

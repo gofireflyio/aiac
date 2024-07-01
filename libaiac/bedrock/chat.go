@@ -13,12 +13,9 @@ import (
 // Conversation is a struct used to converse with a Bedrock chat model. It
 // maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	// Messages is the list of all messages exchanged between the user and the
-	// assistant.
-	Messages []bedrocktypes.Message
-
-	backend *Bedrock
-	model   string
+	backend  *Bedrock
+	model    string
+	messages []bedrocktypes.Message
 }
 
 // Chat initiates a conversation with a Bedrock chat model. A conversation
@@ -28,20 +25,20 @@ type Conversation struct {
 // in the past. This practically allows "loading" previous conversations and
 // continuing them.
 func (backend *Bedrock) Chat(model string, msgs ...types.Message) types.Conversation {
-	chat := &Conversation{
+	conv := &Conversation{
 		backend: backend,
 		model:   model,
 	}
 
 	if len(msgs) > 0 {
-		chat.Messages = make([]bedrocktypes.Message, len(msgs))
+		conv.messages = make([]bedrocktypes.Message, len(msgs))
 		for i := range msgs {
 			role := bedrocktypes.ConversationRoleUser
 			if msgs[i].Role == "assistant" {
 				role = bedrocktypes.ConversationRoleAssistant
 			}
 
-			chat.Messages[i] = bedrocktypes.Message{
+			conv.messages[i] = bedrocktypes.Message{
 				Role: role,
 				Content: []bedrocktypes.ContentBlock{
 					&bedrocktypes.ContentBlockMemberText{Value: msgs[i].Content},
@@ -50,7 +47,7 @@ func (backend *Bedrock) Chat(model string, msgs ...types.Message) types.Conversa
 		}
 	}
 
-	return chat
+	return conv
 }
 
 // Send sends the provided message to the backend and returns a Response object.
@@ -61,7 +58,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	res types.Response,
 	err error,
 ) {
-	conv.Messages = append(conv.Messages, bedrocktypes.Message{
+	conv.messages = append(conv.messages, bedrocktypes.Message{
 		Role: bedrocktypes.ConversationRoleUser,
 		Content: []bedrocktypes.ContentBlock{
 			&bedrocktypes.ContentBlockMemberText{Value: prompt},
@@ -70,7 +67,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 
 	input := bedrockruntime.ConverseInput{
 		ModelId:  aws.String(conv.model),
-		Messages: conv.Messages,
+		Messages: conv.messages,
 		InferenceConfig: &bedrocktypes.InferenceConfiguration{
 			Temperature: aws.Float32(0.2),
 		},
@@ -101,11 +98,25 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	res.TokensUsed = int64(*output.Usage.TotalTokens)
 	res.StopReason = string(output.StopReason)
 
-	conv.Messages = append(conv.Messages, outputMsg)
+	conv.messages = append(conv.messages, outputMsg)
 
 	if res.Code, ok = types.ExtractCode(res.FullOutput); !ok {
 		res.Code = res.FullOutput
 	}
 
 	return res, nil
+}
+
+// Messages returns all the messages that have been exchanged between the user
+// and the assistant up to this point.
+func (conv *Conversation) Messages() []types.Message {
+	msgs := make([]types.Message, len(conv.messages))
+	for i, m := range conv.messages {
+		content, _ := m.Content[0].(*bedrocktypes.ContentBlockMemberText)
+		msgs[i] = types.Message{
+			Role:    string(m.Role),
+			Content: content.Value,
+		}
+	}
+	return msgs
 }

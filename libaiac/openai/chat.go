@@ -12,12 +12,9 @@ import (
 // maintains all messages sent/received in order to maintain context just like
 // using ChatGPT.
 type Conversation struct {
-	// Messages is the list of all messages exchanged between the user and the
-	// assistant.
-	Messages []types.Message
-
-	backend *OpenAI
-	model   string
+	backend  *OpenAI
+	model    string
+	messages []types.Message
 }
 
 type chatResponse struct {
@@ -38,16 +35,16 @@ type chatResponse struct {
 // messages" that may have been exchanged in the past. This practically allows
 // "loading" previous conversations and continuing them.
 func (backend *OpenAI) Chat(model string, msgs ...types.Message) types.Conversation {
-	chat := &Conversation{
+	conv := &Conversation{
 		backend: backend,
 		model:   model,
 	}
 
 	if len(msgs) > 0 {
-		chat.Messages = msgs
+		conv.messages = msgs
 	}
 
-	return chat
+	return conv
 }
 
 // Send sends the provided message to the API and returns a Response object.
@@ -60,7 +57,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 ) {
 	var answer chatResponse
 
-	conv.Messages = append(conv.Messages, types.Message{
+	conv.messages = append(conv.messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
@@ -74,7 +71,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		NewRequest("POST", fmt.Sprintf("/chat/completions%s", apiVersion)).
 		JSONBody(map[string]interface{}{
 			"model":       conv.model,
-			"messages":    conv.Messages,
+			"messages":    conv.messages,
 			"temperature": 0.2,
 		}).
 		Into(&answer).
@@ -87,7 +84,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		return res, types.ErrNoResults
 	}
 
-	conv.Messages = append(conv.Messages, answer.Choices[0].Message)
+	conv.messages = append(conv.messages, answer.Choices[0].Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Choices[0].Message.Content)
 	res.APIKeyUsed = conv.backend.apiKey
@@ -100,4 +97,10 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	}
 
 	return res, nil
+}
+
+// Messages returns all the messages that have been exchanged between the user
+// and the assistant up to this point.
+func (conv *Conversation) Messages() []types.Message {
+	return conv.messages
 }
