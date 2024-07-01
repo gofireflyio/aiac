@@ -153,13 +153,15 @@ default_backend = "official_openai"   # Default backend when one is not selected
 [backends.official_openai]
 type = "openai"
 api_key = "API KEY"
-default_model = "gpt-4o"     # Default model to use for this backend
+default_model = "gpt-4o"              # Default model to use for this backend
 
 [backends.azure_openai]
 type = "openai"
 url = "https://tenant.openai.azure.com/openai/deployments/test"
 api_key = "API KEY"
-api_version = "2023-05-15"   # Optional
+api_version = "2023-05-15"            # Optional
+auth_header = "api-key"               # Default is "Authorization"
+extra_headers = { X-Header-1 = "one", X-Header-2 = "two" }
 
 [backends.aws_staging]
 type = "bedrock"
@@ -176,6 +178,18 @@ default_model = "amazon.titan-text-express-v1"
 type = "ollama"
 url = "http://localhost:11434/api"     # This is the default
 ```
+
+Notes:
+
+1. Every backend can have a default model (via configuration key `default_model`).
+   If not provided, calls that do not define a model will fail.
+2. Backends of type "openai" can change the header used for authorization by
+   providing the `auth_header` setting. This defaults to "Authorization", but
+   Azure OpenAI uses "api-key" instead. When the header is either "Authorization"
+   or "Proxy-Authorization", the header's value for requests will be "Bearer
+   API_KEY". If it's anything else, it'll simply be "API_KEY".
+3. Backends of type "openai" and "ollama" support adding extra headers to every
+   request issued by aiac, by utilizing the `extra_headers` setting.
 
 ### Usage
 

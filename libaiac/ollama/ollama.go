@@ -24,6 +24,10 @@ type Options struct {
 	// URL is the URL of the API server (including the /api path prefix).
 	// Defaults to DefaultAPIURL.
 	URL string
+
+	// ExtraHeaders are extra HTTP headers to send with every request to the
+	// provider.
+	ExtraHeaders map[string]string
 }
 
 // New creates a new instance of the Ollama struct, with the provided
@@ -65,6 +69,10 @@ func New(opts *Options) *Ollama {
 				res.Error,
 			)
 		})
+
+	for header, value := range opts.ExtraHeaders {
+		cli.HTTPClient.Header(header, value)
+	}
 
 	return cli
 }

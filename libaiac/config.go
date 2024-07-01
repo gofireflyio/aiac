@@ -60,6 +60,10 @@ type BackendConfig struct {
 	// DefaultModel is the name of the model to use by default when a specific
 	// one is not selected.
 	DefaultModel string `toml:"default_model"`
+
+	// ExtraHeaders allows setting extra HTTP headers whenever aiac sends
+	// requests to the backend. Bedrock backends do not support this setting.
+	ExtraHeaders map[string]string `toml:"extra_headers"`
 }
 
 // LoadConfig loads an aiac configuration file from the provided path, which

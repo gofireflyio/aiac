@@ -133,14 +133,16 @@ func (aiac *Aiac) loadBackend(ctx context.Context, name string) (
 		backend = bedrock.New(cfg)
 	case BackendOllama:
 		backend = ollama.New(&ollama.Options{
-			URL: backendConf.URL,
+			URL:          backendConf.URL,
+			ExtraHeaders: backendConf.ExtraHeaders,
 		})
 	default:
 		// default to openai
 		backend, err = openai.New(&openai.Options{
-			ApiKey:     backendConf.APIKey,
-			URL:        backendConf.URL,
-			APIVersion: backendConf.APIVersion,
+			ApiKey:       backendConf.APIKey,
+			URL:          backendConf.URL,
+			APIVersion:   backendConf.APIVersion,
+			ExtraHeaders: backendConf.ExtraHeaders,
 		})
 		if err != nil {
 			return nil, defaultModel, err
