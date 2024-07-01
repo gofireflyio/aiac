@@ -11,9 +11,12 @@ import (
 // Conversation is a struct used to converse with an Ollama chat model. It
 // maintains all messages sent/received in order to maintain context.
 type Conversation struct {
-	backend  *Ollama
-	model    string
-	messages []types.Message
+	// Messages is the list of all messages exchanged between the user and the
+	// assistant.
+	Messages []types.Message
+
+	backend *Ollama
+	model   string
 }
 
 type chatResponse struct {
@@ -23,12 +26,21 @@ type chatResponse struct {
 
 // Chat initiates a conversation with an Ollama chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
-// from previous requests.
-func (backend *Ollama) Chat(model string) types.Conversation {
-	return &Conversation{
+// from previous requests. The name of the model to use must be provided. Users
+// can also supply zero or more "previous messages" that may have been exchanged
+// in the past. This practically allows "loading" previous conversations and
+// continuing them.
+func (backend *Ollama) Chat(model string, msgs ...types.Message) types.Conversation {
+	chat := &Conversation{
 		backend: backend,
 		model:   model,
 	}
+
+	if len(msgs) > 0 {
+		chat.Messages = msgs
+	}
+
+	return chat
 }
 
 // Send sends the provided message to the API and returns a Response object.
@@ -41,7 +53,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 ) {
 	var answer chatResponse
 
-	conv.messages = append(conv.messages, types.Message{
+	conv.Messages = append(conv.Messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
@@ -49,7 +61,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 	err = conv.backend.NewRequest("POST", "/chat").
 		JSONBody(map[string]interface{}{
 			"model":    conv.model,
-			"messages": conv.messages,
+			"messages": conv.Messages,
 			"options": map[string]interface{}{
 				"temperature": 0.2,
 			},
@@ -61,7 +73,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		return res, fmt.Errorf("failed sending prompt: %w", err)
 	}
 
-	conv.messages = append(conv.messages, answer.Message)
+	conv.Messages = append(conv.Messages, answer.Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Message.Content)
 	if answer.Done {

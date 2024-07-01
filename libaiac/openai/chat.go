@@ -12,9 +12,12 @@ import (
 // maintains all messages sent/received in order to maintain context just like
 // using ChatGPT.
 type Conversation struct {
-	backend  *OpenAI
-	model    string
-	messages []types.Message
+	// Messages is the list of all messages exchanged between the user and the
+	// assistant.
+	Messages []types.Message
+
+	backend *OpenAI
+	model   string
 }
 
 type chatResponse struct {
@@ -30,12 +33,21 @@ type chatResponse struct {
 
 // Chat initiates a conversation with an OpenAI chat model. A conversation
 // maintains context, allowing to send further instructions to modify the output
-// from previous requests, just like using the ChatGPT website.
-func (backend *OpenAI) Chat(model string) types.Conversation {
-	return &Conversation{
+// from previous requests, just like using the ChatGPT website. The name of the
+// model to use must be provided. Users can also supply zero or more "previous
+// messages" that may have been exchanged in the past. This practically allows
+// "loading" previous conversations and continuing them.
+func (backend *OpenAI) Chat(model string, msgs ...types.Message) types.Conversation {
+	chat := &Conversation{
 		backend: backend,
 		model:   model,
 	}
+
+	if len(msgs) > 0 {
+		chat.Messages = msgs
+	}
+
+	return chat
 }
 
 // Send sends the provided message to the API and returns a Response object.
@@ -48,7 +60,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 ) {
 	var answer chatResponse
 
-	conv.messages = append(conv.messages, types.Message{
+	conv.Messages = append(conv.Messages, types.Message{
 		Role:    "user",
 		Content: prompt,
 	})
@@ -62,7 +74,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		NewRequest("POST", fmt.Sprintf("/chat/completions%s", apiVersion)).
 		JSONBody(map[string]interface{}{
 			"model":       conv.model,
-			"messages":    conv.messages,
+			"messages":    conv.Messages,
 			"temperature": 0.2,
 		}).
 		Into(&answer).
@@ -75,7 +87,7 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		return res, types.ErrNoResults
 	}
 
-	conv.messages = append(conv.messages, answer.Choices[0].Message)
+	conv.Messages = append(conv.Messages, answer.Choices[0].Message)
 
 	res.FullOutput = strings.TrimSpace(answer.Choices[0].Message.Content)
 	res.APIKeyUsed = conv.backend.apiKey
