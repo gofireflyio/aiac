@@ -5,21 +5,21 @@
 class Aiac < Formula
   desc "Artificial Intelligence Infrastructure-as-Code Generator"
   homepage "https://github.com/gofireflyio/aiac"
-  version "5.2.0"
+  version "5.2.1"
   license "Apache-2.0"
 
   on_macos do
     on_intel do
-      url "https://github.com/gofireflyio/aiac/releases/download/v5.2.0/aiac_5.2.0_darwin-amd64.tar.gz"
-      sha256 "a030481fd5e49dd7259d0dc5235de92f1b8160e76d48e32a835ac95a2f47c4c5"
+      url "https://github.com/gofireflyio/aiac/releases/download/v5.2.1/aiac_5.2.1_darwin-amd64.tar.gz"
+      sha256 "7bb6c25956ba1ba94e300f3e568c18e43bb0b2dd4c0439c2338789e734020760"
 
       def install
         bin.install "aiac"
       end
     end
     on_arm do
-      url "https://github.com/gofireflyio/aiac/releases/download/v5.2.0/aiac_5.2.0_darwin-arm64.tar.gz"
-      sha256 "039857058ab8413041e5851bab07a8559a128db7cd55b6e22e49926141f286bb"
+      url "https://github.com/gofireflyio/aiac/releases/download/v5.2.1/aiac_5.2.1_darwin-arm64.tar.gz"
+      sha256 "66da77802c46b49d01b0186e03ba7cf3709d4616d53264f8240d3317282f477d"
 
       def install
         bin.install "aiac"
@@ -30,8 +30,8 @@ class Aiac < Formula
   on_linux do
     on_intel do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/gofireflyio/aiac/releases/download/v5.2.0/aiac_5.2.0_linux-amd64.tar.gz"
-        sha256 "7263f75511bcebfce2be8bb35e8fdc927c99558dca882bf355499b6fb7a5b64f"
+        url "https://github.com/gofireflyio/aiac/releases/download/v5.2.1/aiac_5.2.1_linux-amd64.tar.gz"
+        sha256 "aed3d6cf43ae97885cbcabf24a377104c586ffbd938f545a7d331b00cea0fc21"
 
         def install
           bin.install "aiac"
@@ -40,8 +40,8 @@ class Aiac < Formula
     end
     on_arm do
       if Hardware::CPU.is_64_bit?
-        url "https://github.com/gofireflyio/aiac/releases/download/v5.2.0/aiac_5.2.0_linux-arm64.tar.gz"
-        sha256 "1af77c0eb8f4610f68cecabed8338017df4c68a60e7e815ebd6cbbdac58a3d47"
+        url "https://github.com/gofireflyio/aiac/releases/download/v5.2.1/aiac_5.2.1_linux-arm64.tar.gz"
+        sha256 "0eeb8d835711dc33e4cce1c917503f3566bac946eaa401555f9c9ade7b93a8ff"
 
         def install
           bin.install "aiac"
