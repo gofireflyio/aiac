@@ -29,6 +29,7 @@ type flags struct {
 	What       []string `arg:"" optional:"" help:"Which IaC template to generate"`
 	Clipboard  bool     `help:"Copy generated code to clipboard (in --quiet mode)"`
 	ListModels bool     `help:"List supported models and exit"`
+	Timeout    int      `help:"Generate code timeout in second" default:"60"`
 	Version    bool     `help:"Print aiac version and exit"`
 }
 
@@ -97,7 +98,7 @@ func printModels(aiac *libaiac.Aiac, cli flags) error {
 var errInvalidInput = errors.New("invalid input, please try again")
 
 func generateCode(aiac *libaiac.Aiac, cli flags) error { //nolint: funlen, cyclop
-	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(cli.Timeout)*time.Second)
 	defer cancel()
 
 	spin := spinner.New(
