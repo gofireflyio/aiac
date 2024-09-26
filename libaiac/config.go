@@ -102,6 +102,22 @@ func replaceEnvVars(conf Config) Config {
 			backendConfig.AWSProfile = replaceEnvVar(backendConfig.AWSProfile)
 		}
 
+		if backendConfig.AWSRegion != "" {
+			backendConfig.AWSRegion = replaceEnvVar(backendConfig.AWSRegion)
+		}
+
+		if backendConfig.URL != "" {
+			backendConfig.URL = replaceEnvVar(backendConfig.URL)
+		}
+
+		if backendConfig.DefaultModel != "" {
+			backendConfig.DefaultModel = replaceEnvVar(backendConfig.DefaultModel)
+		}
+
+		if backendConfig.APIVersion != "" {
+			backendConfig.APIVersion = replaceEnvVar(backendConfig.APIVersion)
+		}
+
 		conf.Backends[backendName] = backendConfig
 	}
 
