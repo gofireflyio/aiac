@@ -2,6 +2,7 @@ package libaiac
 
 import (
 	"fmt"
+	"os"
 
 	"github.com/BurntSushi/toml"
 	"github.com/adrg/xdg"
@@ -83,5 +84,32 @@ func LoadConfig(path string) (conf Config, err error) {
 		return conf, fmt.Errorf("failed loading configuration: %w", err)
 	}
 
+	// If any of the config values are env vars, replace them
+	conf = replaceEnvVars(conf)
+
 	return conf, nil
+}
+
+// replaceEnvVars replaces any environment variables in the config with their
+// actual values.
+func replaceEnvVars(conf Config) Config {
+	for backendName, backendConfig := range conf.Backends {
+		if backendConfig.APIKey != "" {
+			backendConfig.APIKey = replaceEnvVar(backendConfig.APIKey)
+		}
+
+		if backendConfig.AWSProfile != "" {
+			backendConfig.AWSProfile = replaceEnvVar(backendConfig.AWSProfile)
+		}
+
+		conf.Backends[backendName] = backendConfig
+	}
+
+	return conf
+}
+
+// replaceEnvVar replaces an environment variable in a string with its actual
+// value.
+func replaceEnvVar(s string) string {
+	return os.ExpandEnv(s)
 }
