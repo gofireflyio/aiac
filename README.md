@@ -153,6 +153,8 @@ default_backend = "official_openai"   # Default backend when one is not selected
 [backends.official_openai]
 type = "openai"
 api_key = "API KEY"
+# Or 
+# api_key = "$OPENAI_API_KEY"
 default_model = "gpt-4o"              # Default model to use for this backend
 
 [backends.azure_openai]
