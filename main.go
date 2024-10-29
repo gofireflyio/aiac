@@ -29,7 +29,7 @@ type flags struct {
 	What       []string `arg:"" optional:"" help:"Which IaC template to generate"`
 	Clipboard  bool     `help:"Copy generated code to clipboard (in --quiet mode)"`
 	ListModels bool     `help:"List supported models and exit"`
-	Timeout    int      `help:"Generate code timeout in second" default:"60"`
+	Timeout    int      `help:"Timeout to generate code, in seconds" default:"60"`
 	Version    bool     `help:"Print aiac version and exit"`
 }
 
