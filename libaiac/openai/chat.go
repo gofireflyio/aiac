@@ -8,6 +8,17 @@ import (
 	"github.com/gofireflyio/aiac/v5/libaiac/types"
 )
 
+// supportsTemperature checks if a model supports the temperature parameter.
+// OpenAI's reasoning models (o1, o3, etc.) do not support temperature.
+func supportsTemperature(model string) bool {
+	model = strings.ToLower(model)
+	// Reasoning models start with "o1" or "o3" (e.g., o1-mini, o1-preview, o3-mini)
+	if strings.HasPrefix(model, "o1") || strings.HasPrefix(model, "o3") {
+		return false
+	}
+	return true
+}
+
 // Conversation is a struct used to converse with an OpenAI chat model. It
 // maintains all messages sent/received in order to maintain context just like
 // using ChatGPT.
@@ -68,13 +79,17 @@ func (conv *Conversation) Send(ctx context.Context, prompt string) (
 		apiVersion = fmt.Sprintf("?api-version=%s", conv.backend.apiVersion)
 	}
 
+	body := map[string]interface{}{
+		"model":    conv.model,
+		"messages": conv.messages,
+	}
+	if supportsTemperature(conv.model) {
+		body["temperature"] = 0.2
+	}
+
 	req := conv.backend.
 		NewRequest("POST", fmt.Sprintf("/chat/completions%s", apiVersion)).
-		JSONBody(map[string]interface{}{
-			"model":       conv.model,
-			"messages":    conv.messages,
-			"temperature": 0.2,
-		}).
+		JSONBody(body).
 		Into(&answer)
 
 	for key, val := range conv.extraHeaders {
